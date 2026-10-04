@@ -19,7 +19,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import id.elclark.lunas.R
 import id.elclark.lunas.model.MonthlyOverview
 import id.elclark.lunas.theme.PrimaryGreen
 import id.elclark.lunas.theme.StatusDueSoon
@@ -65,7 +67,7 @@ fun TotalSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "TOTAL TAGIHAN",
+                    text = stringResource(R.string.summary_total_bills),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.2.sp,
@@ -80,7 +82,7 @@ fun TotalSummaryCard(
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = if (isAllPaid) "Semua Lunas" else "${overview.paidCount}/${overview.totalCount} Layanan Lunas",
+                            text = if (isAllPaid) stringResource(R.string.summary_all_paid) else stringResource(R.string.summary_paid_count, overview.paidCount, overview.totalCount),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (isAllPaid) StatusPaid else MaterialTheme.colorScheme.onSurfaceVariant
@@ -98,7 +100,7 @@ fun TotalSummaryCard(
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
-                    text = "Rp ",
+                    text = stringResource(R.string.common_rp) + " ",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -120,7 +122,7 @@ fun TotalSummaryCard(
             if (!hasBills) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Tidak ada tagihan jatuh tempo bulan ini",
+                    text = stringResource(R.string.summary_no_due),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -167,7 +169,7 @@ fun TotalSummaryCard(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Terbayar",
+                                    text = stringResource(R.string.summary_paid),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium

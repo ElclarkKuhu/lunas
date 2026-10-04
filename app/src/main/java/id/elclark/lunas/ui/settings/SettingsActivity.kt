@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,6 +82,17 @@ fun SettingsScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
+    val backupSuccessText = stringResource(R.string.settings_backup_success)
+    val backupFailureFormat = stringResource(R.string.settings_backup_fail)
+    val biometricPromptTitle = stringResource(R.string.settings_biometric_prompt_title)
+    val biometricPromptSubtitle = stringResource(R.string.settings_biometric_prompt_subtitle)
+    val verificationFailureFormat = stringResource(R.string.settings_verification_fail)
+    val biometricUnavailableText = stringResource(R.string.settings_biometric_unavailable)
+    val noLinkAppText = stringResource(R.string.settings_no_link_app)
+    val backupCopiedText = stringResource(R.string.settings_copy_backup_success)
+    val appVersion = remember {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+    }
 
     val settings by repository.settings.collectAsStateWithLifecycle()
     val services by repository.services.collectAsStateWithLifecycle()
@@ -89,6 +101,7 @@ fun SettingsScreen(
     var showRestoreDialog by remember { mutableStateOf(false) }
     var showExportOptionsDialog by remember { mutableStateOf(false) }
     var showOpenSourceNotice by remember { mutableStateOf(false) }
+    var showPrivacyNotice by remember { mutableStateOf(false) }
     var exportJsonContent by remember { mutableStateOf("") }
 
     val exportDocLauncher = rememberLauncherForActivityResult(
@@ -100,9 +113,13 @@ fun SettingsScreen(
                     context.contentResolver.openOutputStream(uri)?.use { os ->
                         os.write(exportJsonContent.toByteArray(Charsets.UTF_8))
                     }
-                    Toast.makeText(context, "File cadangan berhasil disimpan!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, backupSuccessText, Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Gagal menyimpan file: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        context,
+                        String.format(Locale.getDefault(), backupFailureFormat, e.message ?: ""),
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
@@ -113,7 +130,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Pengaturan",
+                        text = stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
@@ -125,7 +142,7 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -147,31 +164,35 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Section 1: Keamanan
-            PreferenceSection(title = "KEAMANAN & PRIVASI") {
+            PreferenceSection(title = stringResource(R.string.settings_security_privacy)) {
                 PreferenceCard {
                     PreferenceSwitchRow(
                         icon = Icons.Default.Lock,
-                        title = "Kunci Biometrik / PIN",
-                        subtitle = "Wajib sidik jari atau PIN saat membuka aplikasi",
+                        title = stringResource(R.string.settings_biometric_title),
+                        subtitle = stringResource(R.string.settings_biometric_subtitle),
                         checked = settings.biometricEnabled,
                         onCheckedChange = { enable ->
                             if (enable) {
                                 if (BiometricPromptHelper.canAuthenticate(context)) {
                                     BiometricPromptHelper.showPrompt(
                                         activity = activity,
-                                        title = "Verifikasi Sidik Jari",
-                                        subtitle = "Konfirmasi untuk mengaktifkan kunci aplikasi",
+                                        title = biometricPromptTitle,
+                                        subtitle = biometricPromptSubtitle,
                                         onSuccess = {
                                             coroutineScope.launch {
                                                 repository.updateSettings(settings.copy(biometricEnabled = true))
                                             }
                                         },
                                         onError = { err ->
-                                            Toast.makeText(context, "Gagal verifikasi: $err", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                context,
+                                                String.format(Locale.getDefault(), verificationFailureFormat, err),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     )
                                 } else {
-                                    Toast.makeText(context, "Perangkat belum mengaktifkan sidik jari atau PIN", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, biometricUnavailableText, Toast.LENGTH_LONG).show()
                                 }
                             } else {
                                 coroutineScope.launch {
@@ -184,12 +205,12 @@ fun SettingsScreen(
             }
 
             // Section 2: Notifikasi
-            PreferenceSection(title = "PENGINGAT & NOTIFIKASI") {
+            PreferenceSection(title = stringResource(R.string.settings_notifications)) {
                 PreferenceCard {
                     PreferenceSwitchRow(
                         icon = Icons.Default.Notifications,
-                        title = "Notifikasi Pengingat",
-                        subtitle = "Pengingat otomatis saat tagihan dicetak dan H-2 sebelum jatuh tempo",
+                        title = stringResource(R.string.settings_notification_title),
+                        subtitle = stringResource(R.string.settings_notification_subtitle),
                         checked = settings.notificationsEnabled,
                         onCheckedChange = { enable ->
                             coroutineScope.launch {
@@ -201,24 +222,24 @@ fun SettingsScreen(
             }
 
             // Section 3: Layanan Paylater
-            PreferenceSection(title = "LAYANAN PAYLATER") {
+            PreferenceSection(title = stringResource(R.string.settings_services)) {
                 PreferenceCard {
                     PreferenceClickableRow(
                         icon = Icons.Default.CreditCard,
-                        title = "Kelola Daftar Layanan",
-                        subtitle = "${services.size} layanan aktif (atur tanggal cetak & jatuh tempo)",
+                        title = stringResource(R.string.settings_manage_services),
+                        subtitle = stringResource(R.string.settings_manage_services_subtitle, services.size),
                         onClick = onNavigateToManageServices
                     )
                 }
             }
 
             // Section 4: Data & Cadangan
-            PreferenceSection(title = "DATA & CADANGAN") {
+            PreferenceSection(title = stringResource(R.string.settings_data_backup)) {
                 PreferenceCard {
                     PreferenceClickableRow(
                         icon = Icons.Default.AutoAwesome,
-                        title = "Ekstraksi Screenshot AI",
-                        subtitle = "Ekstraksi gambar/screenshot via prompt AI dinamis dengan daftar layanan Anda",
+                        title = stringResource(R.string.settings_ai_import_title),
+                        subtitle = stringResource(R.string.settings_ai_import_subtitle),
                         iconTint = MaterialTheme.colorScheme.primary,
                         onClick = { showAiImportDialog = true }
                     )
@@ -230,8 +251,8 @@ fun SettingsScreen(
 
                     PreferenceClickableRow(
                         icon = Icons.Default.UploadFile,
-                        title = "Ekspor Cadangan (File JSON)",
-                        subtitle = "Simpan file .json lengkap (layanan, tagihan, pengaturan)",
+                        title = stringResource(R.string.settings_export_json_title),
+                        subtitle = stringResource(R.string.settings_export_json_subtitle),
                         onClick = {
                             coroutineScope.launch {
                                 exportJsonContent = repository.exportBackupJson()
@@ -247,15 +268,15 @@ fun SettingsScreen(
 
                     PreferenceClickableRow(
                         icon = Icons.Default.Restore,
-                        title = "Pulihkan Cadangan (File JSON)",
-                        subtitle = "Buka file .json cadangan atau tempel teks JSON penuh",
+                        title = stringResource(R.string.settings_restore_json_title),
+                        subtitle = stringResource(R.string.settings_restore_json_subtitle),
                         onClick = { showRestoreDialog = true }
                     )
                 }
             }
 
             // Section 5: Tentang Aplikasi
-            PreferenceSection(title = "TENTANG APLIKASI") {
+            PreferenceSection(title = stringResource(R.string.settings_about)) {
                 PreferenceCard {
                     Row(
                         modifier = Modifier
@@ -282,19 +303,19 @@ fun SettingsScreen(
 
                         Column {
                             Text(
-                                text = "Lunas",
+                                text = stringResource(R.string.common_lunas),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Versi 1.1 • Paylater & Cicilan Tracker",
+                                text = stringResource(R.string.settings_version_format, appVersion),
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "100% offline & data tersimpan aman di perangkat lokal Anda.",
+                                text = stringResource(R.string.settings_offline),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -308,7 +329,7 @@ fun SettingsScreen(
 
                     PreferenceClickableRow(
                         icon = Icons.Default.Code,
-                        title = "Kode Sumber",
+                        title = stringResource(R.string.settings_source_code),
                         subtitle = "github.com/ElclarkKuhu/lunas",
                         onClick = {
                             try {
@@ -319,7 +340,7 @@ fun SettingsScreen(
                                     )
                                 )
                             } catch (_: ActivityNotFoundException) {
-                                Toast.makeText(context, "Tidak ada aplikasi untuk membuka tautan.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, noLinkAppText, Toast.LENGTH_LONG).show()
                             }
                         }
                     )
@@ -331,9 +352,21 @@ fun SettingsScreen(
 
                     PreferenceClickableRow(
                         icon = Icons.Default.Description,
-                        title = "Lisensi Open Source",
-                        subtitle = "Lunas menggunakan lisensi MIT",
+                        title = stringResource(R.string.settings_open_source),
+                        subtitle = stringResource(R.string.settings_open_source_desc),
                         onClick = { showOpenSourceNotice = true }
+                    )
+
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    )
+
+                    PreferenceClickableRow(
+                        icon = Icons.Default.Security,
+                        title = stringResource(R.string.settings_privacy_policy),
+                        subtitle = stringResource(R.string.settings_privacy_policy_desc),
+                        onClick = { showPrivacyNotice = true }
                     )
                 }
             }
@@ -356,11 +389,11 @@ fun SettingsScreen(
                 )
             },
             title = {
-                Text("Ekspor Cadangan Data", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_export_dialog_title), fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(
-                    "Cadangan mencakup seluruh daftar layanan paylater, riwayat tagihan, dan pengaturan aplikasi Anda.",
+                    stringResource(R.string.settings_export_dialog_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -375,7 +408,7 @@ fun SettingsScreen(
                 ) {
                     Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Simpan File .json")
+                    Text(stringResource(R.string.settings_save_json_file))
                 }
             },
             dismissButton = {
@@ -385,13 +418,13 @@ fun SettingsScreen(
                         coroutineScope.launch {
                             val clipEntry = ClipEntry(ClipData.newPlainText("lunas_backup", exportJsonContent))
                             clipboard.setClipEntry(clipEntry)
-                            Toast.makeText(context, "Data cadangan JSON disalin ke clipboard!", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, backupCopiedText, Toast.LENGTH_LONG).show()
                         }
                     }
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Salin ke Clipboard")
+                    Text(stringResource(R.string.common_copy_to_clipboard))
                 }
             }
         )
@@ -429,13 +462,10 @@ fun SettingsScreen(
                     modifier = Modifier.size(28.dp)
                 )
             },
-            title = { Text("Lisensi MIT", fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.settings_mit_license), fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "Lunas is open-source software licensed under the MIT License.\n\n" +
-                        "Copyright (c) 2026 Elclark\n\n" +
-                        "You may use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software, provided this copyright notice and permission notice are included.\n\n" +
-                        "The software is provided “as is”, without warranty of any kind. See the repository for the complete license text.",
+                    stringResource(R.string.settings_mit_description),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
                         .heightIn(max = 360.dp)
@@ -444,7 +474,38 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showOpenSourceNotice = false }) {
-                    Text("Tutup")
+                    Text(stringResource(R.string.common_close))
+                }
+            }
+        )
+    }
+
+    if (showPrivacyNotice) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyNotice = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Icon(
+                    Icons.Default.Security,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = { Text(stringResource(R.string.settings_privacy_policy), fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    stringResource(R.string.settings_privacy_policy_text),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrivacyNotice = false }) {
+                    Text(stringResource(R.string.common_close))
                 }
             }
         )

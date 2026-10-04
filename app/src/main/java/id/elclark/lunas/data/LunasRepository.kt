@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import java.time.YearMonth
 import java.util.UUID
 
 class LunasRepository(private val context: Context) {
@@ -136,8 +137,8 @@ class LunasRepository(private val context: Context) {
         reloadAll()
     }
 
-    suspend fun deleteService(serviceId: String) = withContext(Dispatchers.IO) {
-        dbHelper.deleteService(serviceId)
+    suspend fun archiveService(serviceId: String) = withContext(Dispatchers.IO) {
+        dbHelper.archiveService(serviceId)
         reloadAll()
     }
 
@@ -152,14 +153,13 @@ class LunasRepository(private val context: Context) {
         allItems: List<BillItem>,
         allPayments: List<PaymentStatus>
     ): MonthlyOverview {
-        val activeServices = allServices.filter { it.isActive }
         val statements = mutableListOf<MonthlyServiceStatement>()
 
         var totalDue = 0L
         var totalPaid = 0L
         var paidCount = 0
 
-        for (svc in activeServices) {
+        for (svc in allServices) {
             // Find items active in targetYm
             val computedItems = mutableListOf<ComputedBillItem>()
             var subtotal = 0L
@@ -323,7 +323,7 @@ class LunasRepository(private val context: Context) {
             val jsonElement = json.parseToJsonElement(clean)
             var count = 0
 
-            val currentServices = dbHelper.getAllServices().toMutableList()
+            var currentServices = mutableListOf<PaylaterService>()
             fun ensureServiceExists(serviceId: String) {
                 if (currentServices.none { it.id.equals(serviceId, ignoreCase = true) }) {
                     val fallbackName = serviceId.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
@@ -352,7 +352,6 @@ class LunasRepository(private val context: Context) {
                     rawService.contains("yup", ignoreCase = true) -> "yup"
                     else -> rawService.lowercase().replace(" ", "").replace("_", "").replace("-", "")
                 }
-                ensureServiceExists(serviceId)
 
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull
                     ?: obj["name"]?.jsonPrimitive?.contentOrNull
@@ -370,6 +369,8 @@ class LunasRepository(private val context: Context) {
                     ?: obj["startMonth"]?.jsonPrimitive?.contentOrNull
                     ?: obj["month"]?.jsonPrimitive?.contentOrNull
                     ?: DateUtils.currentYearMonth()
+                YearMonth.parse(startYm)
+                ensureServiceExists(serviceId)
                 val math = obj["rawMathExpression"]?.jsonPrimitive?.contentOrNull
                     ?: obj["math"]?.jsonPrimitive?.contentOrNull
                     ?: obj["expression"]?.jsonPrimitive?.contentOrNull
@@ -386,71 +387,80 @@ class LunasRepository(private val context: Context) {
                 )
             }
 
-            when (jsonElement) {
-                is JsonArray -> {
-                    for (el in jsonElement) {
-                        if (el is JsonObject) {
-                            val item = parseItem(el)
-                            dbHelper.insertItem(item)
-                            count++
-                        }
-                    }
-                }
-                is JsonObject -> {
-                    if (jsonElement.containsKey("services") && jsonElement.containsKey("items")) {
-                        val backup = json.decodeFromJsonElement<BackupData>(jsonElement)
-                        if (merge) {
-                            for (s in backup.services) {
-                                dbHelper.upsertService(s)
-                            }
-                            for (item in backup.items) {
+            fun validateImportedItems(items: List<BillItem>) {
+                items.forEach { YearMonth.parse(it.startYearMonth) }
+            }
+
+            dbHelper.runInTransaction {
+                currentServices = dbHelper.getAllServices().toMutableList()
+                when (jsonElement) {
+                    is JsonArray -> {
+                        for (el in jsonElement) {
+                            if (el is JsonObject) {
+                                val item = parseItem(el)
                                 dbHelper.insertItem(item)
                                 count++
                             }
-                            for (p in backup.payments) {
-                                dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid)
-                            }
-                            dbHelper.saveSettings(backup.settings)
-                        } else {
-                            val servicesToRestore = if (backup.services.isNotEmpty()) backup.services else dbHelper.getAllServices()
-                            dbHelper.clearAndRestoreAll(servicesToRestore, backup.items, backup.payments, backup.settings)
-                            count = backup.items.size
                         }
-                    } else if (jsonElement.containsKey("items")) {
-                        val itemsArray = jsonElement["items"]?.jsonArray
-                        if (itemsArray != null) {
-                            for (el in itemsArray) {
-                                if (el is JsonObject) {
-                                    val item = parseItem(el)
+                    }
+                    is JsonObject -> {
+                        if (jsonElement.containsKey("services") && jsonElement.containsKey("items")) {
+                            val backup = json.decodeFromJsonElement<BackupData>(jsonElement)
+                            validateImportedItems(backup.items)
+                            if (merge) {
+                                for (s in backup.services) {
+                                    dbHelper.upsertService(s)
+                                }
+                                for (item in backup.items) {
                                     dbHelper.insertItem(item)
                                     count++
                                 }
+                                for (p in backup.payments) {
+                                    dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid)
+                                }
+                                dbHelper.saveSettings(backup.settings)
+                            } else {
+                                val servicesToRestore = if (backup.services.isNotEmpty()) backup.services else dbHelper.getAllServices()
+                                dbHelper.clearAndRestoreAll(servicesToRestore, backup.items, backup.payments, backup.settings)
+                                count = backup.items.size
                             }
-                        }
-                    } else if (jsonElement.containsKey("serviceId") || jsonElement.containsKey("service") || jsonElement.containsKey("amount")) {
-                        val item = parseItem(jsonElement)
-                        dbHelper.insertItem(item)
-                        count++
-                    } else {
-                        val backup = json.decodeFromJsonElement<BackupData>(jsonElement)
-                        if (merge) {
-                            for (s in backup.services) {
-                                dbHelper.upsertService(s)
+                        } else if (jsonElement.containsKey("items")) {
+                            val itemsArray = jsonElement["items"]?.jsonArray
+                            if (itemsArray != null) {
+                                for (el in itemsArray) {
+                                    if (el is JsonObject) {
+                                        val item = parseItem(el)
+                                        dbHelper.insertItem(item)
+                                        count++
+                                    }
+                                }
                             }
-                            for (item in backup.items) {
-                                dbHelper.insertItem(item)
-                                count++
-                            }
-                            for (p in backup.payments) {
-                                dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid)
-                            }
+                        } else if (jsonElement.containsKey("serviceId") || jsonElement.containsKey("service") || jsonElement.containsKey("amount")) {
+                            val item = parseItem(jsonElement)
+                            dbHelper.insertItem(item)
+                            count++
                         } else {
-                            dbHelper.clearAndRestoreAll(backup.services, backup.items, backup.payments, backup.settings)
-                            count = backup.items.size
+                            val backup = json.decodeFromJsonElement<BackupData>(jsonElement)
+                            validateImportedItems(backup.items)
+                            if (merge) {
+                                for (s in backup.services) {
+                                    dbHelper.upsertService(s)
+                                }
+                                for (item in backup.items) {
+                                    dbHelper.insertItem(item)
+                                    count++
+                                }
+                                for (p in backup.payments) {
+                                    dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid)
+                                }
+                            } else {
+                                dbHelper.clearAndRestoreAll(backup.services, backup.items, backup.payments, backup.settings)
+                                count = backup.items.size
+                            }
                         }
                     }
+                    else -> throw IllegalArgumentException("Format JSON harus berupa Array atau Object")
                 }
-                else -> throw IllegalArgumentException("Format JSON harus berupa Array atau Object")
             }
 
             reloadAllNow()

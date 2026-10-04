@@ -157,11 +157,23 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         db.insertWithOnConflict(TABLE_SERVICES, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
-    fun deleteService(serviceId: String) {
+    fun archiveService(serviceId: String) {
         val db = writableDatabase
-        db.delete(TABLE_SERVICES, "$COL_SERVICE_ID = ?", arrayOf(serviceId))
-        db.delete(TABLE_ITEMS, "$COL_ITEM_SERVICE_ID = ?", arrayOf(serviceId))
-        db.delete(TABLE_PAYMENTS, "$COL_PAYMENT_SERVICE_ID = ?", arrayOf(serviceId))
+        val values = ContentValues().apply {
+            put(COL_SERVICE_ACTIVE, 0)
+        }
+        db.update(TABLE_SERVICES, values, "$COL_SERVICE_ID = ?", arrayOf(serviceId))
+    }
+
+    fun runInTransaction(block: () -> Unit) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            block()
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 
     // CRUD for Bill Items

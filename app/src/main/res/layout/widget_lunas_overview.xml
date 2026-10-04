@@ -18,7 +18,7 @@
             android:id="@+id/widget_logo"
             android:layout_width="22dp"
             android:layout_height="22dp"
-            android:contentDescription="Lunas Logo"
+            android:contentDescription="@string/widget_logo_content_description"
             android:src="@drawable/ic_lunas_logo" />
 
         <TextView
@@ -26,7 +26,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="Lunas"
+            android:text="@string/common_lunas"
             android:textColor="@color/dark_text_primary"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -52,7 +52,7 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:background="@drawable/widget_btn_bg"
-            android:contentDescription="Segarkan Widget"
+            android:contentDescription="@string/widget_refresh_content_description"
             android:padding="7dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_widget_refresh" />
@@ -64,7 +64,7 @@
             android:layout_height="32dp"
             android:layout_marginStart="6dp"
             android:background="@drawable/widget_btn_bg"
-            android:contentDescription="Tambah Tagihan Baru"
+            android:contentDescription="@string/widget_add_content_description"
             android:padding="6dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_widget_add" />
@@ -82,7 +82,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:letterSpacing="0.04"
-            android:text="TOTAL BULAN INI"
+            android:text="@string/widget_total_month"
             android:textColor="@color/dark_text_muted"
             android:textSize="10sp"
             android:textStyle="bold" />
@@ -117,7 +117,7 @@
                 android:paddingTop="3dp"
                 android:paddingEnd="9dp"
                 android:paddingBottom="3dp"
-                android:text="Semua Lunas"
+                android:text="@string/widget_paid_status"
                 android:textColor="@color/on_primary_green_container"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -134,7 +134,7 @@
                 android:paddingTop="3dp"
                 android:paddingEnd="9dp"
                 android:paddingBottom="3dp"
-                android:text="0/0 Lunas"
+                android:text="@string/widget_due_status"
                 android:textColor="@color/status_due_soon"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -151,7 +151,7 @@
                 android:paddingTop="3dp"
                 android:paddingEnd="9dp"
                 android:paddingBottom="3dp"
-                android:text="Tidak Ada Tagihan"
+                android:text="@string/widget_neutral_status"
                 android:textColor="@color/dark_text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -192,7 +192,7 @@
             android:id="@+id/widget_upcoming_icon"
             android:layout_width="16dp"
             android:layout_height="16dp"
-            android:contentDescription="Jatuh tempo"
+            android:contentDescription="@string/widget_upcoming_due"
             android:src="@drawable/ic_widget_calendar" />
 
         <LinearLayout
@@ -208,7 +208,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Jatuh Tempo Berikutnya"
+                android:text="@string/widget_due_title"
                 android:textColor="@color/dark_text_primary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -219,7 +219,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Tidak ada tagihan tertunda"
+                android:text="@string/widget_no_upcoming"
                 android:textColor="@color/dark_text_secondary"
                 android:textSize="10sp" />
         </LinearLayout>

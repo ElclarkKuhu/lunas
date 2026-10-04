@@ -21,11 +21,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import id.elclark.lunas.R
 import id.elclark.lunas.model.BillItem
 import id.elclark.lunas.model.ComputedBillItem
 import id.elclark.lunas.model.MonthlyServiceStatement
@@ -95,7 +97,7 @@ fun ServiceStatementCard(
                 }
 
                 Text(
-                    text = "Rp 0",
+                    text = "${stringResource(R.string.common_rp)} 0",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -170,7 +172,7 @@ fun ServiceStatementCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Lunas",
+                                text = stringResource(R.string.service_lunas),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = StatusPaid
@@ -182,11 +184,11 @@ fun ServiceStatementCard(
                     val (textColor, textIcon, labelText) = when {
                         statement.isOverdue -> {
                             val days = -statement.daysUntilDue
-                            Triple(StatusOverdue, Icons.Default.WarningAmber, "Terlambat $days hr")
+                            Triple(StatusOverdue, Icons.Default.WarningAmber, stringResource(R.string.service_overdue, days))
                         }
                         statement.isDueSoon -> {
                             val days = statement.daysUntilDue
-                            Triple(StatusDueSoon, Icons.Default.HourglassTop, if (days == 0) "Hari ini tempo" else "H-$days Jatuh tempo")
+                            Triple(StatusDueSoon, Icons.Default.HourglassTop, if (days == 0) stringResource(R.string.service_due_today) else stringResource(R.string.service_due_in_days, days))
                         }
                         else -> {
                             Triple(MaterialTheme.colorScheme.onSurfaceVariant, Icons.Default.CalendarMonth, statement.dueDateText)
@@ -251,7 +253,7 @@ fun ServiceStatementCard(
             ) {
                 Column {
                     Text(
-                        text = "Subtotal",
+                        text = stringResource(R.string.service_subtotal),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
@@ -286,7 +288,7 @@ fun ServiceStatementCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Batal Lunas",
+                            text = stringResource(R.string.service_mark_unpaid),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                     }
@@ -307,7 +309,7 @@ fun ServiceStatementCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Tandai Lunas",
+                            text = stringResource(R.string.service_mark_paid),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                         )
                     }

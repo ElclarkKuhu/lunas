@@ -23,10 +23,10 @@ android {
     buildToolsVersion = "37.0.0"
     defaultConfig {
         applicationId = "id.elclark.lunas"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {
@@ -60,7 +60,7 @@ android {
     buildFeatures {
       compose = true
       aidl = false
-      buildConfig = false
+      buildConfig = true
       shaders = false
     }
 

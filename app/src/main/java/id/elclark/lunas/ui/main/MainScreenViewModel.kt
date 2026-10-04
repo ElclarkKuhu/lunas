@@ -202,9 +202,9 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun deleteService(serviceId: String) {
+    fun archiveService(serviceId: String) {
         viewModelScope.launch {
-            repository.deleteService(serviceId)
+            repository.archiveService(serviceId)
         }
     }
 

@@ -24,11 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import id.elclark.lunas.R
 import id.elclark.lunas.model.BillItem
 import id.elclark.lunas.theme.StatusPaid
 import id.elclark.lunas.ui.components.*
@@ -120,7 +122,7 @@ fun MainScreen(
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 painter = androidx.compose.ui.res.painterResource(id = id.elclark.lunas.R.drawable.ic_lunas_logo),
-                                                contentDescription = "Logo Lunas",
+                                                contentDescription = stringResource(R.string.common_lunas),
                                                 tint = Color.Unspecified,
                                                 modifier = Modifier.size(22.dp)
                                             )
@@ -129,7 +131,7 @@ fun MainScreen(
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column {
                                         Text(
-                                            text = "Lunas",
+                                            text = stringResource(R.string.main_title),
                                             style = MaterialTheme.typography.titleLarge.copy(
                                                 fontWeight = FontWeight.Black,
                                                 fontSize = 20.sp
@@ -137,7 +139,7 @@ fun MainScreen(
                                             color = MaterialTheme.colorScheme.onBackground
                                         )
                                         Text(
-                                            text = "Paylater & Cicilan Tracker",
+                                            text = stringResource(R.string.main_tracker_subtitle),
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Normal
@@ -156,7 +158,7 @@ fun MainScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.AutoAwesome,
-                                        contentDescription = "Ekstraksi Tagihan AI",
+                                        contentDescription = stringResource(R.string.main_ai_extract),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -172,7 +174,7 @@ fun MainScreen(
                                     ) {
                                         Icon(
                                             Icons.Default.Lock,
-                                            contentDescription = "Kunci Aplikasi",
+                                            contentDescription = stringResource(R.string.main_lock_app),
                                             tint = MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -187,7 +189,7 @@ fun MainScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.Settings,
-                                        contentDescription = "Pengaturan",
+                                        contentDescription = stringResource(R.string.main_settings),
                                         tint = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -215,7 +217,7 @@ fun MainScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Tambah Tagihan",
+                                contentDescription = stringResource(R.string.main_add_bill),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -296,7 +298,7 @@ fun MainScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "RINCIAN LAYANAN",
+                                            text = stringResource(R.string.main_section_services),
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 letterSpacing = 1.2.sp,
@@ -307,7 +309,7 @@ fun MainScreen(
 
                                         if (overview.statements.isNotEmpty()) {
                                             Text(
-                                                text = "${overview.statements.count { it.items.isNotEmpty() }} aktif",
+                                                text = "${overview.statements.count { it.items.isNotEmpty() }} ${stringResource(R.string.common_active)}",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -337,13 +339,13 @@ fun MainScreen(
                                                 )
                                                 Spacer(modifier = Modifier.height(12.dp))
                                                 Text(
-                                                    text = "Belum Ada Tagihan",
+                                                    text = stringResource(R.string.main_empty_title),
                                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                                     color = MaterialTheme.colorScheme.onSurface
                                                 )
                                                 Spacer(modifier = Modifier.height(6.dp))
                                                 Text(
-                                                    text = "Tambahkan cicilan atau hitung cepat tagihan bulan ini dengan tombol di bawah.",
+                                                    text = stringResource(R.string.main_empty_message),
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -377,7 +379,9 @@ fun MainScreen(
                     // Dialogs & Sheets
                     if (showAddSheet || editingBillItem != null) {
                         AddBillBottomSheet(
-                            services = state.services,
+                            services = state.services.filter {
+                                it.isActive || it.id == editingBillItem?.serviceId
+                            },
                             defaultYm = currentPagerYm,
                             editingItem = editingBillItem,
                             onDismiss = {

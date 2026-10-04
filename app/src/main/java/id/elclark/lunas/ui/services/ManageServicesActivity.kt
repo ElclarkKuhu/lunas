@@ -24,12 +24,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.elclark.lunas.R
 import id.elclark.lunas.data.LunasRepository
 import id.elclark.lunas.model.PaylaterService
 import id.elclark.lunas.theme.LunasTheme
@@ -67,14 +69,14 @@ fun ManageServicesScreen(
 
     var showServiceFormSheet by remember { mutableStateOf(false) }
     var editingService by remember { mutableStateOf<PaylaterService?>(null) }
-    var serviceToDelete by remember { mutableStateOf<PaylaterService?>(null) }
+    var serviceToArchive by remember { mutableStateOf<PaylaterService?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Kelola Layanan Paylater",
+                        text = stringResource(R.string.manage_services_title),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
@@ -86,7 +88,7 @@ fun ManageServicesScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -103,7 +105,7 @@ fun ManageServicesScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Tambah", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(stringResource(R.string.manage_services_add), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -123,7 +125,7 @@ fun ManageServicesScreen(
         ) {
             item {
                 Text(
-                    text = "DAFTAR LAYANAN TERDAFTAR (${services.size})",
+                    text = stringResource(R.string.manage_services_list_count, services.size),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.2.sp,
@@ -154,13 +156,13 @@ fun ManageServicesScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Belum Ada Layanan",
+                                text = stringResource(R.string.manage_services_empty_title),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Tambahkan layanan paylater seperti SPayLater, GoPayLater, Kredivo, dll.",
+                                text = stringResource(R.string.manage_services_empty_message),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -213,10 +215,22 @@ fun ManageServicesScreen(
                                     )
                                     Spacer(modifier = Modifier.height(3.dp))
                                     Text(
-                                        text = "Cetak: Tgl ${svc.billingCutoffDay} • Tempo: Tgl ${svc.dueDay} (${if (svc.dueMonthOffset == 1) "+1 bln" else "bln sama"})",
+                                        text = stringResource(
+                                            R.string.manage_services_cutoff_due,
+                                            svc.billingCutoffDay,
+                                            svc.dueDay,
+                                            stringResource(if (svc.dueMonthOffset == 1) R.string.manage_services_next_month else R.string.manage_services_same_month)
+                                        ),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    if (!svc.isActive) {
+                                        Text(
+                                            text = stringResource(R.string.manage_services_archived),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
 
@@ -230,20 +244,31 @@ fun ManageServicesScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Edit,
-                                        contentDescription = "Edit Layanan",
+                                        contentDescription = stringResource(R.string.manage_services_edit_description),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(17.dp)
                                     )
                                 }
 
                                 IconButton(
-                                    onClick = { serviceToDelete = svc },
+                                    onClick = {
+                                        if (svc.isActive) {
+                                            serviceToArchive = svc
+                                        } else {
+                                            coroutineScope.launch {
+                                                repository.saveService(svc.copy(isActive = true))
+                                            }
+                                        }
+                                    },
                                     modifier = Modifier.size(34.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.DeleteOutline,
-                                        contentDescription = "Hapus Layanan",
-                                        tint = MaterialTheme.colorScheme.error,
+                                        imageVector = if (svc.isActive) Icons.Default.Archive else Icons.Default.Restore,
+                                        contentDescription = stringResource(
+                                            if (svc.isActive) R.string.manage_services_archive_description
+                                            else R.string.manage_services_restore_description
+                                        ),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(17.dp)
                                     )
                                 }
@@ -277,20 +302,20 @@ fun ManageServicesScreen(
         )
     }
 
-    // Delete Confirmation Dialog
-    if (serviceToDelete != null) {
-        val target = serviceToDelete!!
+    // Archive Confirmation Dialog
+    if (serviceToArchive != null) {
+        val target = serviceToArchive!!
         AlertDialog(
-            onDismissRequest = { serviceToDelete = null },
+            onDismissRequest = { serviceToArchive = null },
             shape = RoundedCornerShape(18.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
             title = {
-                Text("Hapus Layanan?", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.manage_services_archive_title), fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(
-                    "Apakah Anda yakin ingin menghapus layanan \"${target.name}\"? Tagihan yang tertaut ke layanan ini akan tetap tersimpan.",
+                    stringResource(R.string.manage_services_archive_message, target.name),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -299,18 +324,17 @@ fun ManageServicesScreen(
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            repository.deleteService(target.id)
+                            repository.archiveService(target.id)
                         }
-                        serviceToDelete = null
+                        serviceToArchive = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Hapus", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.manage_services_archive), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { serviceToDelete = null }) {
-                    Text("Batal")
+                TextButton(onClick = { serviceToArchive = null }) {
+                    Text(stringResource(R.string.manage_services_cancel))
                 }
             }
         )
@@ -361,7 +385,7 @@ private fun ServiceFormBottomSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = if (isEdit) "Edit Layanan Paylater" else "Tambah Layanan Baru",
+                text = stringResource(if (isEdit) R.string.manage_service_edit_title else R.string.manage_service_add_title),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
@@ -372,8 +396,8 @@ private fun ServiceFormBottomSheet(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nama Layanan") },
-                placeholder = { Text("Contoh: Kredivo, SPayLater") },
+                label = { Text(stringResource(R.string.manage_service_name)) },
+                placeholder = { Text(stringResource(R.string.manage_service_name_example)) },
                 shape = RoundedCornerShape(10.dp),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -383,8 +407,8 @@ private fun ServiceFormBottomSheet(
                 OutlinedTextField(
                     value = cutoffDayText,
                     onValueChange = { cutoffDayText = it.filter { c -> c.isDigit() } },
-                    label = { Text("Tgl Cetak") },
-                    placeholder = { Text("1-31") },
+                    label = { Text(stringResource(R.string.manage_service_cutoff_day)) },
+                    placeholder = { Text(stringResource(R.string.manage_service_day_range)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(10.dp),
                     singleLine = true,
@@ -393,8 +417,8 @@ private fun ServiceFormBottomSheet(
                 OutlinedTextField(
                     value = dueDayText,
                     onValueChange = { dueDayText = it.filter { c -> c.isDigit() } },
-                    label = { Text("Jatuh Tempo") },
-                    placeholder = { Text("1-31") },
+                    label = { Text(stringResource(R.string.manage_service_due_day)) },
+                    placeholder = { Text(stringResource(R.string.manage_service_day_range)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(10.dp),
                     singleLine = true,
@@ -404,7 +428,7 @@ private fun ServiceFormBottomSheet(
 
             Column {
                 Text(
-                    text = "BULAN JATUH TEMPO",
+                    text = stringResource(R.string.manage_service_due_month),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
@@ -433,7 +457,7 @@ private fun ServiceFormBottomSheet(
                                 .clickable { dueOffset = 1 }
                         ) {
                             Text(
-                                text = "Bulan Depan (+1)",
+                                text = stringResource(R.string.manage_service_next_month_option),
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = if (dueOffset == 1) FontWeight.Bold else FontWeight.Medium
                                 ),
@@ -451,7 +475,7 @@ private fun ServiceFormBottomSheet(
                                 .clickable { dueOffset = 0 }
                         ) {
                             Text(
-                                text = "Bulan Sama (0)",
+                                text = stringResource(R.string.manage_service_same_month_option),
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = if (dueOffset == 0) FontWeight.Bold else FontWeight.Medium
                                 ),
@@ -466,7 +490,7 @@ private fun ServiceFormBottomSheet(
 
             Column {
                 Text(
-                    text = "PILIH WARNA BADGE",
+                    text = stringResource(R.string.manage_service_badge_color),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
@@ -529,7 +553,7 @@ private fun ServiceFormBottomSheet(
                     .heightIn(min = 48.dp)
             ) {
                 Text(
-                    text = if (isEdit) "Simpan Perubahan" else "Tambahkan Layanan",
+                    text = stringResource(if (isEdit) R.string.manage_service_save_changes else R.string.manage_service_add_button),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
             }
