@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- Lunas Monogram: "L" merging into "✓" -->
+    <path
+        android:pathData="M 170,148 V 316 C 170,354 198,376 236,376 C 260,376 282,364 298,344 L 374,212"
+        android:fillColor="#00000000"
+        android:strokeColor="#10B981"
+        android:strokeWidth="44"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M 374,148 m -22,0 a 22,22 0 1,0 44,0 a 22,22 0 1,0 -44,0"
+        android:fillColor="#10B981" />
+</vector>

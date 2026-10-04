@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Lunas</string>
+    <string name="widget_name">Lunas Ringkasan</string>
+    <string name="widget_description">Pantau ringkasan tagihan &amp; jatuh tempo paylater langsung dari home screen</string>
+</resources>

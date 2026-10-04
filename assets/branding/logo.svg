@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Background Squircle -->
+  <rect width="512" height="512" rx="128" fill="#0D1117"/>
+
+  <!-- Subtle Inner Container -->
+  <rect x="32" y="32" width="448" height="448" rx="100" fill="#161B22" stroke="#30363D" stroke-width="4"/>
+
+  <!-- Lunas Monogram: "L" merging into a victorious Checkmark "✓" -->
+  <!-- Emerald Stroke with rounded caps and joins -->
+  <path
+    d="M 170 148
+       V 316
+       C 170 354 198 376 236 376
+       C 260 376 282 364 298 344
+       L 374 212"
+    fill="none"
+    stroke="#10B981"
+    stroke-width="44"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Subtle Accent Dot / Settlement Point -->
+  <circle cx="374" cy="148" r="22" fill="#10B981" />
+</svg>
