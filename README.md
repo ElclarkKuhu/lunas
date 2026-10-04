@@ -29,6 +29,8 @@ From the repository root, build a debug APK:
 
 The APK is written under `app/build/outputs/apk/debug/`.
 
+Release builds enable R8 code minification and resource shrinking.
+
 ## Release signing
 
 Release signing credentials are read from a local `keystore.properties` file in the repository root. Create it with these entries:
