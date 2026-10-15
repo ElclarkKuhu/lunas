@@ -33,6 +33,7 @@ fun TotalSummaryCard(
     overview: MonthlyOverview,
     modifier: Modifier = Modifier,
     totalOwed: Long = 0L,
+    currencyCode: String = "IDR",
     onClickTotalOwed: (() -> Unit)? = null
 ) {
     val remaining = (overview.totalDue - overview.totalPaid).coerceAtLeast(0L)
@@ -100,7 +101,7 @@ fun TotalSummaryCard(
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
-                    text = stringResource(R.string.common_rp) + " ",
+                    text = "${DateUtils.currencySymbol(currencyCode)} ",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -109,7 +110,7 @@ fun TotalSummaryCard(
                     modifier = Modifier.padding(bottom = 3.dp)
                 )
                 Text(
-                    text = DateUtils.formatRupiah(overview.totalDue, withPrefix = false),
+                    text = DateUtils.formatCurrency(overview.totalDue, currencyCode, withPrefix = false),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Black,
                         fontSize = 32.sp,
@@ -179,7 +180,7 @@ fun TotalSummaryCard(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = DateUtils.formatRupiah(overview.totalPaid),
+                                text = DateUtils.formatCurrency(overview.totalPaid, currencyCode),
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
@@ -215,7 +216,7 @@ fun TotalSummaryCard(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = DateUtils.formatRupiah(remaining),
+                                text = DateUtils.formatCurrency(remaining, currencyCode),
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
@@ -260,7 +261,7 @@ fun TotalSummaryCard(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = DateUtils.formatRupiah(totalOwed),
+                        text = DateUtils.formatCurrency(totalOwed, currencyCode),
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,

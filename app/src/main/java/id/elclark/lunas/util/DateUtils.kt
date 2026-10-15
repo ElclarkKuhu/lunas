@@ -10,6 +10,25 @@ import java.util.Locale
 
 object DateUtils {
 
+    data class CurrencyOption(
+        val code: String,
+        val symbol: String,
+        val localeTag: String
+    )
+
+    val supportedCurrencies = listOf(
+        CurrencyOption("IDR", "Rp", "id-ID"),
+        CurrencyOption("USD", "$", "en-US"),
+        CurrencyOption("SGD", "S$", "en-SG"),
+        CurrencyOption("MYR", "RM", "ms-MY"),
+        CurrencyOption("AUD", "A$", "en-AU"),
+        CurrencyOption("EUR", "€", "de-DE")
+    )
+
+    fun currencySymbol(currencyCode: String): String =
+        supportedCurrencies.find { it.code == currencyCode }?.symbol
+            ?: supportedCurrencies.first().symbol
+
     private val ID_MONTH_NAMES_FULL = listOf(
         "Januari", "Februari", "Maret", "April", "Mei", "Juni",
         "Juli", "Agustus", "September", "Oktober", "November", "Desember"
@@ -104,12 +123,19 @@ object DateUtils {
     }
 
     fun formatRupiah(amount: Long, withPrefix: Boolean = true): String {
-        val symbols = DecimalFormatSymbols(Locale.forLanguageTag("id-ID")).apply {
-            groupingSeparator = '.'
-            decimalSeparator = ','
-        }
-        val formatter = DecimalFormat("#,###", symbols)
+        return formatCurrency(amount, "IDR", withPrefix)
+    }
+
+    fun formatCurrency(
+        amount: Long,
+        currencyCode: String = "IDR",
+        withPrefix: Boolean = true
+    ): String {
+        val currency = supportedCurrencies.find { it.code == currencyCode }
+            ?: supportedCurrencies.first()
+        val symbols = DecimalFormatSymbols(Locale.forLanguageTag(currency.localeTag))
+        val formatter = DecimalFormat("#,##0", symbols)
         val formattedNumber = formatter.format(amount)
-        return if (withPrefix) "Rp $formattedNumber" else formattedNumber
+        return if (withPrefix) "${currency.symbol} $formattedNumber" else formattedNumber
     }
 }

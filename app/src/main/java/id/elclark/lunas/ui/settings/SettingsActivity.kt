@@ -1,13 +1,22 @@
 package id.elclark.lunas.ui.settings
 
+import android.Manifest
+import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.text.format.DateFormat
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import id.elclark.lunas.notification.NotificationHelper
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -15,7 +24,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,7 +33,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipEntry
@@ -44,7 +51,7 @@ import id.elclark.lunas.security.BiometricPromptHelper
 import id.elclark.lunas.theme.LunasTheme
 import id.elclark.lunas.ui.components.JsonImportDialog
 import id.elclark.lunas.ui.components.RestoreBackupDialog
-import id.elclark.lunas.util.AiPromptTemplates
+import id.elclark.lunas.util.DateUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -102,7 +109,61 @@ fun SettingsScreen(
     var showExportOptionsDialog by remember { mutableStateOf(false) }
     var showOpenSourceNotice by remember { mutableStateOf(false) }
     var showPrivacyNotice by remember { mutableStateOf(false) }
+    var showReminderDaysDialog by remember { mutableStateOf(false) }
     var exportJsonContent by remember { mutableStateOf("") }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var isSystemNotificationEnabled by remember {
+        mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isSystemNotificationEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val timePickerDialog = remember(context, settings.reminderHour, settings.reminderMinute) {
+        TimePickerDialog(
+            context,
+            { _, hourOfDay, minute ->
+                coroutineScope.launch {
+                    repository.updateSettings(
+                        settings.copy(
+                            reminderHour = hourOfDay,
+                            reminderMinute = minute
+                        )
+                    )
+                    NotificationHelper.scheduleDailyAlarm(context, hourOfDay, minute)
+                }
+            },
+            settings.reminderHour,
+            settings.reminderMinute,
+            DateFormat.is24HourFormat(context)
+        )
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            coroutineScope.launch {
+                repository.updateSettings(settings.copy(notificationsEnabled = true))
+                NotificationHelper.scheduleDailyAlarm(context, settings.reminderHour, settings.reminderMinute)
+            }
+        } else {
+            Toast.makeText(
+                context,
+                context.getString(R.string.settings_notification_permission_denied),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     val exportDocLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -163,7 +224,292 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Section 1: Keamanan
+            // Section 1: Layanan Paylater
+            PreferenceSection(title = stringResource(R.string.settings_services)) {
+                PreferenceCard {
+                    PreferenceClickableRow(
+                        icon = Icons.Default.CreditCard,
+                        title = stringResource(R.string.settings_manage_services),
+                        subtitle = stringResource(R.string.settings_manage_services_subtitle, services.size),
+                        onClick = onNavigateToManageServices
+                    )
+                }
+            }
+
+            // Section 2: Notifikasi
+            PreferenceSection(title = stringResource(R.string.settings_notifications)) {
+                PreferenceCard {
+                    if (settings.notificationsEnabled && !isSystemNotificationEnabled) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    }
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = Uri.fromParts("package", context.packageName, null)
+                                        }
+                                        try {
+                                            context.startActivity(fallbackIntent)
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                                .padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.WarningAmber,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = stringResource(R.string.settings_notification_warning_disabled),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+                    }
+
+                    PreferenceSwitchRow(
+                        icon = Icons.Default.Notifications,
+                        title = stringResource(R.string.settings_notification_title),
+                        subtitle = stringResource(R.string.settings_notification_subtitle),
+                        checked = settings.notificationsEnabled,
+                        onCheckedChange = { enable ->
+                            if (enable) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                                    coroutineScope.launch {
+                                        repository.updateSettings(settings.copy(notificationsEnabled = true))
+                                        NotificationHelper.scheduleDailyAlarm(context, settings.reminderHour, settings.reminderMinute)
+                                    }
+                                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    }
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {}
+                                } else {
+                                    coroutineScope.launch {
+                                        repository.updateSettings(settings.copy(notificationsEnabled = true))
+                                        NotificationHelper.scheduleDailyAlarm(context, settings.reminderHour, settings.reminderMinute)
+                                    }
+                                }
+                            } else {
+                                coroutineScope.launch {
+                                    repository.updateSettings(settings.copy(notificationsEnabled = false))
+                                    NotificationHelper.cancelDailyAlarm(context)
+                                }
+                            }
+                        }
+                    )
+
+                    if (settings.notificationsEnabled) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+
+                        PreferenceClickableRow(
+                            icon = Icons.Default.Schedule,
+                            title = stringResource(R.string.settings_reminder_time_title),
+                            subtitle = stringResource(
+                                R.string.settings_reminder_time_subtitle_fmt,
+                                settings.reminderHour,
+                                settings.reminderMinute
+                            ),
+                            onClick = { timePickerDialog.show() }
+                        )
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+
+                        PreferenceSwitchRow(
+                            icon = Icons.Default.Receipt,
+                            title = stringResource(R.string.settings_notify_cutoff_title),
+                            subtitle = stringResource(R.string.settings_notify_cutoff_subtitle),
+                            checked = settings.notifyOnCutoff,
+                            onCheckedChange = { checked ->
+                                coroutineScope.launch {
+                                    repository.updateSettings(settings.copy(notifyOnCutoff = checked))
+                                }
+                            }
+                        )
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+
+                        PreferenceSwitchRow(
+                            icon = Icons.Default.Alarm,
+                            title = stringResource(R.string.settings_notify_due_soon_title),
+                            subtitle = stringResource(R.string.settings_notify_due_soon_subtitle, settings.reminderDaysBefore),
+                            checked = settings.notifyDueSoon,
+                            onCheckedChange = { checked ->
+                                coroutineScope.launch {
+                                    repository.updateSettings(settings.copy(notifyDueSoon = checked))
+                                }
+                            }
+                        )
+
+                        if (settings.notifyDueSoon) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                                modifier = Modifier.padding(horizontal = 14.dp)
+                            )
+
+                            PreferenceClickableRow(
+                                icon = Icons.Default.CalendarToday,
+                                title = stringResource(R.string.settings_reminder_days_title),
+                                subtitle = stringResource(R.string.settings_reminder_days_subtitle, settings.reminderDaysBefore),
+                                onClick = { showReminderDaysDialog = true }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+
+                        PreferenceSwitchRow(
+                            icon = Icons.Default.EventBusy,
+                            title = stringResource(R.string.settings_notify_due_date_title),
+                            subtitle = stringResource(R.string.settings_notify_due_date_subtitle),
+                            checked = settings.notifyOnDueDate,
+                            onCheckedChange = { checked ->
+                                coroutineScope.launch {
+                                    repository.updateSettings(settings.copy(notifyOnDueDate = checked))
+                                }
+                            }
+                        )
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+
+                        PreferenceSwitchRow(
+                            icon = Icons.Default.HourglassBottom,
+                            title = stringResource(R.string.settings_notify_overdue_title),
+                            subtitle = stringResource(R.string.settings_notify_overdue_subtitle),
+                            checked = settings.notifyOnOverdue,
+                            onCheckedChange = { checked ->
+                                coroutineScope.launch {
+                                    repository.updateSettings(settings.copy(notifyOnOverdue = checked))
+                                }
+                            }
+                        )
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+
+                        PreferenceClickableRow(
+                            icon = Icons.Default.NotificationsActive,
+                            title = stringResource(R.string.settings_test_notification),
+                            subtitle = stringResource(R.string.settings_test_notification_subtitle),
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    val sent = NotificationHelper.showTestNotification(context)
+                                    if (sent) {
+                                        Toast.makeText(context, context.getString(R.string.settings_test_notification_sent), Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, context.getString(R.string.settings_notification_permission_denied), Toast.LENGTH_LONG).show()
+                                        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                        }
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Section 3: Mata Uang
+            PreferenceSection(title = stringResource(R.string.settings_currency_section)) {
+                PreferenceCard {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = stringResource(R.string.settings_currency_title),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.settings_currency_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        var currencyMenuExpanded by remember { mutableStateOf(false) }
+                        val selectedCurrency = DateUtils.supportedCurrencies.find {
+                            it.code == settings.currencyCode
+                        } ?: DateUtils.supportedCurrencies.first()
+
+                        Box {
+                            OutlinedButton(
+                                onClick = { currencyMenuExpanded = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("${selectedCurrency.code} (${selectedCurrency.symbol})")
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = currencyMenuExpanded,
+                                onDismissRequest = { currencyMenuExpanded = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                DateUtils.supportedCurrencies.forEach { currency ->
+                                    DropdownMenuItem(
+                                        text = { Text("${currency.code} (${currency.symbol})") },
+                                        onClick = {
+                                            currencyMenuExpanded = false
+                                            coroutineScope.launch {
+                                                repository.updateSettings(
+                                                    settings.copy(currencyCode = currency.code)
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 4: Keamanan
             PreferenceSection(title = stringResource(R.string.settings_security_privacy)) {
                 PreferenceCard {
                     PreferenceSwitchRow(
@@ -204,36 +550,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Section 2: Notifikasi
-            PreferenceSection(title = stringResource(R.string.settings_notifications)) {
-                PreferenceCard {
-                    PreferenceSwitchRow(
-                        icon = Icons.Default.Notifications,
-                        title = stringResource(R.string.settings_notification_title),
-                        subtitle = stringResource(R.string.settings_notification_subtitle),
-                        checked = settings.notificationsEnabled,
-                        onCheckedChange = { enable ->
-                            coroutineScope.launch {
-                                repository.updateSettings(settings.copy(notificationsEnabled = enable))
-                            }
-                        }
-                    )
-                }
-            }
-
-            // Section 3: Layanan Paylater
-            PreferenceSection(title = stringResource(R.string.settings_services)) {
-                PreferenceCard {
-                    PreferenceClickableRow(
-                        icon = Icons.Default.CreditCard,
-                        title = stringResource(R.string.settings_manage_services),
-                        subtitle = stringResource(R.string.settings_manage_services_subtitle, services.size),
-                        onClick = onNavigateToManageServices
-                    )
-                }
-            }
-
-            // Section 4: Data & Cadangan
+            // Section 5: Data & Cadangan
             PreferenceSection(title = stringResource(R.string.settings_data_backup)) {
                 PreferenceCard {
                     PreferenceClickableRow(
@@ -275,7 +592,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Section 5: Tentang Aplikasi
+            // Section 6: Tentang Aplikasi
             PreferenceSection(title = stringResource(R.string.settings_about)) {
                 PreferenceCard {
                     Row(
@@ -505,6 +822,68 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showPrivacyNotice = false }) {
+                    Text(stringResource(R.string.common_close))
+                }
+            }
+        )
+    }
+
+    if (showReminderDaysDialog) {
+        val daysOptions = listOf(1, 2, 3, 5, 7)
+        AlertDialog(
+            onDismissRequest = { showReminderDaysDialog = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Icon(
+                    Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(stringResource(R.string.settings_reminder_days_dialog_title), fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    daysOptions.forEach { days ->
+                        val isSelected = settings.reminderDaysBefore == days
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        repository.updateSettings(settings.copy(reminderDaysBefore = days))
+                                    }
+                                    showReminderDaysDialog = false
+                                }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        repository.updateSettings(settings.copy(reminderDaysBefore = days))
+                                    }
+                                    showReminderDaysDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = stringResource(R.string.settings_reminder_days_subtitle, days),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                ),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showReminderDaysDialog = false }) {
                     Text(stringResource(R.string.common_close))
                 }
             }

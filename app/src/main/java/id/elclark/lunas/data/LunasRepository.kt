@@ -145,6 +145,7 @@ class LunasRepository(private val context: Context) {
     suspend fun updateSettings(settings: AppSettings) = withContext(Dispatchers.IO) {
         dbHelper.saveSettings(settings)
         _settings.value = settings
+        LunasWidgetProvider.updateAllWidgets(context)
     }
 
     fun computeMonthlyOverview(
@@ -216,13 +217,24 @@ class LunasRepository(private val context: Context) {
 
         val servicesWithBillsCount = statements.count { it.subtotal > 0 }
 
+        val sortedStatements = statements.sortedWith(
+            compareBy<MonthlyServiceStatement> { statement ->
+                when {
+                    statement.items.isNotEmpty() && !statement.isPaid -> 0
+                    statement.items.isNotEmpty() && statement.isPaid -> 1
+                    else -> 2
+                }
+            }.thenBy { it.daysUntilDue }
+            .thenBy { it.service.name }
+        )
+
         return MonthlyOverview(
             yearMonth = targetYm,
             totalDue = totalDue,
             totalPaid = totalPaid,
             paidCount = paidCount,
             totalCount = servicesWithBillsCount,
-            statements = statements
+            statements = sortedStatements
         )
     }
 

@@ -1,4 +1,4 @@
-﻿package id.elclark.lunas.data
+package id.elclark.lunas.data
 
 import android.content.ContentValues
 import android.content.Context
@@ -258,6 +258,12 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         var notifications = true
         var reminderDays = 2
         var reminderHour = 9
+        var reminderMinute = 0
+        var notifyCutoff = true
+        var notifyDueSoon = true
+        var notifyDueDate = true
+        var notifyOverdue = true
+        var currencyCode = "IDR"
 
         val cursor = db.query(TABLE_SETTINGS, null, null, null, null, null, null)
         cursor.use { c ->
@@ -269,10 +275,27 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
                     "notifications_enabled" -> notifications = value.toBoolean()
                     "reminder_days" -> reminderDays = value.toIntOrNull() ?: 2
                     "reminder_hour" -> reminderHour = value.toIntOrNull() ?: 9
+                    "reminder_minute" -> reminderMinute = value.toIntOrNull() ?: 0
+                    "notify_cutoff" -> notifyCutoff = value.toBoolean()
+                    "notify_due_soon" -> notifyDueSoon = value.toBoolean()
+                    "notify_due_date" -> notifyDueDate = value.toBoolean()
+                    "notify_overdue" -> notifyOverdue = value.toBoolean()
+                    "currency_code" -> currencyCode = value
                 }
             }
         }
-        return AppSettings(biometric, notifications, reminderDays, reminderHour)
+        return AppSettings(
+            biometricEnabled = biometric,
+            notificationsEnabled = notifications,
+            reminderDaysBefore = reminderDays,
+            reminderHour = reminderHour,
+            reminderMinute = reminderMinute,
+            notifyOnCutoff = notifyCutoff,
+            notifyDueSoon = notifyDueSoon,
+            notifyOnDueDate = notifyDueDate,
+            notifyOnOverdue = notifyOverdue,
+            currencyCode = currencyCode
+        )
     }
 
     fun saveSettings(settings: AppSettings) {
@@ -283,6 +306,12 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
             saveSettingKeyVal(db, "notifications_enabled", settings.notificationsEnabled.toString())
             saveSettingKeyVal(db, "reminder_days", settings.reminderDaysBefore.toString())
             saveSettingKeyVal(db, "reminder_hour", settings.reminderHour.toString())
+            saveSettingKeyVal(db, "reminder_minute", settings.reminderMinute.toString())
+            saveSettingKeyVal(db, "notify_cutoff", settings.notifyOnCutoff.toString())
+            saveSettingKeyVal(db, "notify_due_soon", settings.notifyDueSoon.toString())
+            saveSettingKeyVal(db, "notify_due_date", settings.notifyOnDueDate.toString())
+            saveSettingKeyVal(db, "notify_overdue", settings.notifyOnOverdue.toString())
+            saveSettingKeyVal(db, "currency_code", settings.currencyCode)
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()

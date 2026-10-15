@@ -38,7 +38,13 @@ data class AppSettings(
     val biometricEnabled: Boolean = false,
     val notificationsEnabled: Boolean = true,
     val reminderDaysBefore: Int = 2, // H-2 before jatuh tempo
-    val reminderHour: Int = 9        // 09:00 WIB
+    val reminderHour: Int = 9,       // 09:00 WIB
+    val reminderMinute: Int = 0,     // 0-59 minute
+    val notifyOnCutoff: Boolean = true,   // Notifikasi tanggal cetak tagihan
+    val notifyDueSoon: Boolean = true,    // Notifikasi H-x sebelum jatuh tempo
+    val notifyOnDueDate: Boolean = true,  // Notifikasi tepat pada hari H jatuh tempo
+    val notifyOnOverdue: Boolean = true,  // Notifikasi H+1 lewat jatuh tempo
+    val currencyCode: String = "IDR"
 )
 
 data class ComputedBillItem(

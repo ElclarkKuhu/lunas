@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.elclark.lunas.model.TotalOwedSummary
-import id.elclark.lunas.theme.PrimaryGreen
 import id.elclark.lunas.theme.StatusDueSoon
 import id.elclark.lunas.theme.StatusOverdue
 import id.elclark.lunas.theme.StatusPaid
@@ -33,6 +32,7 @@ import id.elclark.lunas.util.DateUtils
 @Composable
 fun TotalOwedBottomSheet(
     summary: TotalOwedSummary,
+    currencyCode: String = "IDR",
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -105,7 +105,7 @@ fun TotalOwedBottomSheet(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = DateUtils.formatRupiah(summary.grandTotalOwed),
+                        text = DateUtils.formatCurrency(summary.grandTotalOwed, currencyCode),
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.Black,
                             fontSize = 28.sp,
@@ -165,7 +165,7 @@ fun TotalOwedBottomSheet(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = DateUtils.formatRupiah(summary.currentMonthRemaining),
+                            text = DateUtils.formatCurrency(summary.currentMonthRemaining, currencyCode),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -190,7 +190,7 @@ fun TotalOwedBottomSheet(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = DateUtils.formatRupiah(summary.futureInstallmentsOwed),
+                            text = DateUtils.formatCurrency(summary.futureInstallmentsOwed, currencyCode),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -222,7 +222,7 @@ fun TotalOwedBottomSheet(
                             color = StatusOverdue
                         )
                         Text(
-                            text = DateUtils.formatRupiah(summary.pastOverdueOwed),
+                            text = DateUtils.formatCurrency(summary.pastOverdueOwed, currencyCode),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -311,7 +311,7 @@ fun TotalOwedBottomSheet(
                                 }
 
                                 Text(
-                                    text = DateUtils.formatRupiah(item.remainingDebt),
+                                    text = DateUtils.formatCurrency(item.remainingDebt, currencyCode),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Monospace,

@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.view.View
 import android.widget.RemoteViews
-import androidx.core.content.ContextCompat
 import id.elclark.lunas.MainActivity
 import id.elclark.lunas.R
 import id.elclark.lunas.data.LunasDatabaseHelper
@@ -51,6 +50,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
                 val services = dbHelper.getAllServices()
                 val items = dbHelper.getAllItems()
                 val payments = dbHelper.getAllPaymentStatuses()
+                val currencyCode = dbHelper.getSettings().currencyCode
 
                 val repo = LunasRepository.getInstance(context)
                 val currentYm = DateUtils.currentYearMonth()
@@ -63,7 +63,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_month_text, DateUtils.formatYearMonthFull(currentYm))
 
                     // Total due amount
-                    views.setTextViewText(R.id.widget_total_amount, DateUtils.formatRupiah(overview.totalDue))
+                    views.setTextViewText(R.id.widget_total_amount, DateUtils.formatCurrency(overview.totalDue, currencyCode))
 
                     // Status Badge & Progress
                     if (overview.totalDue == 0L) {
@@ -111,7 +111,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
                             else -> "Belum dibayar bulan ini"
                         }
                         views.setTextViewText(R.id.widget_upcoming_subtext, subtext)
-                        views.setTextViewText(R.id.widget_upcoming_amount, DateUtils.formatRupiah(nextBill.subtotal))
+                        views.setTextViewText(R.id.widget_upcoming_amount, DateUtils.formatCurrency(nextBill.subtotal, currencyCode))
                         views.setViewVisibility(R.id.widget_upcoming_amount, View.VISIBLE)
                     } else {
                         if (overview.totalDue > 0) {

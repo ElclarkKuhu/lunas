@@ -12,7 +12,7 @@ class BootReceiver : BroadcastReceiver() {
             val dbHelper = LunasDatabaseHelper(context)
             val settings = dbHelper.getSettings()
             if (settings.notificationsEnabled) {
-                NotificationHelper.scheduleDailyAlarm(context, settings.reminderHour)
+                NotificationHelper.scheduleDailyAlarm(context, settings.reminderHour, settings.reminderMinute)
             }
             id.elclark.lunas.widget.LunasWidgetProvider.updateAllWidgets(context)
         }

@@ -25,8 +25,8 @@ android {
         applicationId = "id.elclark.lunas"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     signingConfigs {
@@ -70,6 +70,10 @@ android {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
     }
+
+    lint {
+      disable += "InvalidFragmentVersionForActivityResult"
+    }
 }
 
 kotlin {
@@ -86,6 +90,7 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.biometric)
+  implementation("androidx.fragment:fragment-ktx:1.8.5")
 
   // Arch Components
   implementation(libs.androidx.lifecycle.runtime.compose)

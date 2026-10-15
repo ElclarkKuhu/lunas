@@ -11,8 +11,6 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
@@ -39,6 +37,7 @@ import id.elclark.lunas.util.DateUtils
 @Composable
 fun ServiceStatementCard(
     statement: MonthlyServiceStatement,
+    currencyCode: String = "IDR",
     onTogglePaid: () -> Unit,
     onEditItem: (BillItem) -> Unit,
     onDeleteItem: ((String) -> Unit)? = null,
@@ -97,7 +96,7 @@ fun ServiceStatementCard(
                 }
 
                 Text(
-                    text = "${stringResource(R.string.common_rp)} 0",
+                    text = "${DateUtils.currencySymbol(currencyCode)} 0",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -231,6 +230,7 @@ fun ServiceStatementCard(
             statement.items.forEachIndexed { index, item ->
                 BillItemRow(
                     item = item,
+                    currencyCode = currencyCode,
                     onEdit = { onEditItem(item.item) }
                 )
                 if (index < statement.items.size - 1) {
@@ -262,7 +262,7 @@ fun ServiceStatementCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = DateUtils.formatRupiah(statement.subtotal),
+                        text = DateUtils.formatCurrency(statement.subtotal, currencyCode),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Black,
                             fontSize = 18.sp
@@ -322,6 +322,7 @@ fun ServiceStatementCard(
 @Composable
 private fun BillItemRow(
     item: ComputedBillItem,
+    currencyCode: String,
     onEdit: () -> Unit
 ) {
     Surface(
@@ -407,7 +408,7 @@ private fun BillItemRow(
             Spacer(modifier = Modifier.width(10.dp))
 
             Text(
-                text = DateUtils.formatRupiah(item.monthlyAmount, withPrefix = false),
+                text = DateUtils.formatCurrency(item.monthlyAmount, currencyCode, withPrefix = false),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,

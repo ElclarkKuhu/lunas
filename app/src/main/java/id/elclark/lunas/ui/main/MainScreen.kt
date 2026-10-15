@@ -1,6 +1,5 @@
 package id.elclark.lunas.ui.main
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,9 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -285,6 +282,7 @@ fun MainScreen(
                                     TotalSummaryCard(
                                         overview = overview,
                                         totalOwed = totalOwedSummary.grandTotalOwed,
+                                        currencyCode = state.settings.currencyCode,
                                         onClickTotalOwed = { showTotalOwedSheet = true }
                                     )
                                 }
@@ -354,16 +352,17 @@ fun MainScreen(
                                         }
                                     }
                                 } else {
-                                    val sortedStatements = overview.statements.sortedByDescending { it.items.isNotEmpty() }
                                     items(
-                                        items = sortedStatements,
+                                        items = overview.statements,
                                         key = { it.service.id }
                                     ) { statement ->
                                         ServiceStatementCard(
                                             statement = statement,
+                                            currencyCode = state.settings.currencyCode,
                                             onTogglePaid = { viewModel.togglePayment(statement.service.id, pageYm) },
                                             onEditItem = { item -> editingBillItem = item },
-                                            onDeleteItem = { itemId -> viewModel.deleteItem(itemId) }
+                                            onDeleteItem = { itemId -> viewModel.deleteItem(itemId) },
+                                            modifier = Modifier.animateItem()
                                         )
                                     }
                                 }
@@ -383,6 +382,7 @@ fun MainScreen(
                                 it.isActive || it.id == editingBillItem?.serviceId
                             },
                             defaultYm = currentPagerYm,
+                            currencyCode = state.settings.currencyCode,
                             editingItem = editingBillItem,
                             onDismiss = {
                                 showAddSheet = false
@@ -430,6 +430,7 @@ fun MainScreen(
                         }
                         TotalOwedBottomSheet(
                             summary = totalOwedSummary,
+                            currencyCode = state.settings.currencyCode,
                             onDismiss = { showTotalOwedSheet = false }
                         )
                     }

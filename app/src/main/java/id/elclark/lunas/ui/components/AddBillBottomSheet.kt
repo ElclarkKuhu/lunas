@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ViewTimeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +39,7 @@ import id.elclark.lunas.util.MathParser
 fun AddBillBottomSheet(
     services: List<PaylaterService>,
     defaultYm: String,
+    currencyCode: String = "IDR",
     editingItem: BillItem? = null,
     onDismiss: () -> Unit,
     onAddCicilan: (serviceId: String, title: String, amountPerMonth: Long, tenor: Int, startMonth: String) -> Unit,
@@ -318,7 +318,7 @@ fun AddBillBottomSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(10.dp),
                     singleLine = true,
-                    prefix = { Text("Rp ") },
+                    prefix = { Text("${DateUtils.currencySymbol(currencyCode)} ") },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -528,7 +528,7 @@ fun AddBillBottomSheet(
 
                         Text(
                             text = if (mathResult.isValid) {
-                                DateUtils.formatRupiah(mathResult.total)
+                                DateUtils.formatCurrency(mathResult.total, currencyCode)
                             } else {
                                 "Ketik angka dipisah tanda + (misal: 10000 + 25000)"
                             },
