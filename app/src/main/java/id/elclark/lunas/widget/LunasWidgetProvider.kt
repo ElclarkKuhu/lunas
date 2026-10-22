@@ -3,11 +3,13 @@ package id.elclark.lunas.widget
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 import id.elclark.lunas.MainActivity
 import id.elclark.lunas.R
 import id.elclark.lunas.data.LunasDatabaseHelper
@@ -20,13 +22,22 @@ import kotlinx.coroutines.launch
 class LunasWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        updateWidgets(context, appWidgetManager, appWidgetIds)
+        val pendingResult = goAsync()
+        updateWidgets(context, appWidgetManager, appWidgetIds, pendingResult)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_REFRESH_WIDGET) {
-            updateAllWidgets(context)
+            val pendingResult = goAsync()
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val componentName = ComponentName(context, LunasWidgetProvider::class.java)
+            val appWidgetIds = appWidgetManager?.getAppWidgetIds(componentName)
+            if (appWidgetIds != null && appWidgetIds.isNotEmpty()) {
+                updateWidgets(context, appWidgetManager, appWidgetIds, pendingResult)
+            } else {
+                pendingResult?.finish()
+            }
         }
     }
 
@@ -44,9 +55,15 @@ class LunasWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        private fun updateWidgets(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        private fun updateWidgets(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetIds: IntArray,
+            pendingResult: BroadcastReceiver.PendingResult? = null
+        ) {
             CoroutineScope(Dispatchers.IO).launch {
-                val dbHelper = LunasDatabaseHelper(context)
+                try {
+                    val dbHelper = LunasDatabaseHelper.getInstance(context)
                 val services = dbHelper.getAllServices()
                 val items = dbHelper.getAllItems()
                 val payments = dbHelper.getAllPaymentStatuses()
@@ -59,10 +76,10 @@ class LunasWidgetProvider : AppWidgetProvider() {
                 for (widgetId in appWidgetIds) {
                     val views = RemoteViews(context.packageName, R.layout.widget_lunas_overview)
 
-                    // Month text
-                    views.setTextViewText(R.id.widget_month_text, DateUtils.formatYearMonthFull(currentYm))
+                    // Month text (respects system locale display)
+                    views.setTextViewText(R.id.widget_month_text, DateUtils.formatYearMonthDisplay(currentYm))
 
-                    // Total due amount
+                    // Total due amount (prominent full-width hero value)
                     views.setTextViewText(R.id.widget_total_amount, DateUtils.formatCurrency(overview.totalDue, currencyCode))
 
                     // Status Badge & Progress
@@ -70,13 +87,13 @@ class LunasWidgetProvider : AppWidgetProvider() {
                         views.setViewVisibility(R.id.widget_status_badge_neutral, View.VISIBLE)
                         views.setViewVisibility(R.id.widget_status_badge_paid, View.GONE)
                         views.setViewVisibility(R.id.widget_status_badge_due, View.GONE)
-                        views.setTextViewText(R.id.widget_status_badge_neutral, "Tidak Ada Tagihan")
+                        views.setTextViewText(R.id.widget_status_badge_neutral, context.getString(R.string.widget_neutral_status))
                         views.setProgressBar(R.id.widget_progress_bar, 100, 0, false)
                     } else if (overview.paidCount == overview.totalCount && overview.totalCount > 0) {
                         views.setViewVisibility(R.id.widget_status_badge_paid, View.VISIBLE)
                         views.setViewVisibility(R.id.widget_status_badge_neutral, View.GONE)
                         views.setViewVisibility(R.id.widget_status_badge_due, View.GONE)
-                        views.setTextViewText(R.id.widget_status_badge_paid, "Semua Lunas (${overview.paidCount}/${overview.totalCount})")
+                        views.setTextViewText(R.id.widget_status_badge_paid, context.getString(R.string.widget_paid_status_count, overview.paidCount, overview.totalCount))
                         views.setProgressBar(R.id.widget_progress_bar, 100, 100, false)
                     } else {
                         val progress = if (overview.totalDue > 0) {
@@ -85,7 +102,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
                         views.setViewVisibility(R.id.widget_status_badge_due, View.VISIBLE)
                         views.setViewVisibility(R.id.widget_status_badge_paid, View.GONE)
                         views.setViewVisibility(R.id.widget_status_badge_neutral, View.GONE)
-                        views.setTextViewText(R.id.widget_status_badge_due, "${overview.paidCount}/${overview.totalCount} Lunas")
+                        views.setTextViewText(R.id.widget_status_badge_due, context.getString(R.string.widget_due_status, overview.paidCount, overview.totalCount))
                         views.setProgressBar(R.id.widget_progress_bar, 100, progress, false)
                     }
 
@@ -97,29 +114,59 @@ class LunasWidgetProvider : AppWidgetProvider() {
                     val nextBill = unpaidStatements.firstOrNull()
 
                     if (nextBill != null) {
-                        val dueDesc = when {
-                            nextBill.daysUntilDue < 0 -> "Telat ${-nextBill.daysUntilDue} hari (${nextBill.dueDateText})"
-                            nextBill.daysUntilDue == 0 -> "Jatuh Tempo HARI INI (${nextBill.dueDateText})"
-                            nextBill.daysUntilDue == 1 -> "Jatuh Tempo BESOK (${nextBill.dueDateText})"
-                            else -> "Jatuh Tempo ${nextBill.dueDateText} (${nextBill.daysUntilDue} hari lagi)"
-                        }
-                        views.setTextViewText(R.id.widget_upcoming_service_and_due, "${nextBill.service.name} • $dueDesc")
-
-                        val subtext = when {
-                            nextBill.isOverdue -> "Lewat jatuh tempo! Segera bayar"
-                            nextBill.isDueSoon -> "Jatuh tempo segera!"
-                            else -> "Belum dibayar bulan ini"
-                        }
-                        views.setTextViewText(R.id.widget_upcoming_subtext, subtext)
+                        // Card Row 1: Service Name (left) & Amount (right)
+                        views.setTextViewText(R.id.widget_upcoming_service_and_due, nextBill.service.name)
                         views.setTextViewText(R.id.widget_upcoming_amount, DateUtils.formatCurrency(nextBill.subtotal, currencyCode))
                         views.setViewVisibility(R.id.widget_upcoming_amount, View.VISIBLE)
+
+                        // Card Row 2: Short formatted due date with remaining days & status styling
+                        val dueFormatted = nextBill.dueDate?.let { DateUtils.formatDueDateShort(it) } ?: nextBill.dueDateText
+                        val (dueDesc, textColorRes, iconRes) = when {
+                            nextBill.daysUntilDue < 0 -> {
+                                val days = -nextBill.daysUntilDue
+                                Triple(
+                                    context.getString(R.string.widget_due_overdue, days, dueFormatted),
+                                    R.color.status_overdue,
+                                    R.drawable.ic_widget_warning
+                                )
+                            }
+                            nextBill.daysUntilDue == 0 -> {
+                                Triple(
+                                    context.getString(R.string.widget_due_today, dueFormatted),
+                                    R.color.status_due_soon,
+                                    R.drawable.ic_widget_calendar
+                                )
+                            }
+                            nextBill.daysUntilDue == 1 -> {
+                                Triple(
+                                    context.getString(R.string.widget_due_tomorrow, dueFormatted),
+                                    R.color.status_due_soon,
+                                    R.drawable.ic_widget_calendar
+                                )
+                            }
+                            else -> {
+                                Triple(
+                                    context.getString(R.string.widget_due_days, dueFormatted, nextBill.daysUntilDue),
+                                    R.color.dark_text_secondary,
+                                    R.drawable.ic_widget_calendar
+                                )
+                            }
+                        }
+
+                        views.setTextViewText(R.id.widget_upcoming_subtext, dueDesc)
+                        views.setTextColor(R.id.widget_upcoming_subtext, ContextCompat.getColor(context, textColorRes))
+                        views.setImageViewResource(R.id.widget_upcoming_icon, iconRes)
                     } else {
                         if (overview.totalDue > 0) {
-                            views.setTextViewText(R.id.widget_upcoming_service_and_due, "Semua tagihan bulan ini beres! ")
-                            views.setTextViewText(R.id.widget_upcoming_subtext, "Tidak ada pembayaran tertunda")
+                            views.setTextViewText(R.id.widget_upcoming_service_and_due, context.getString(R.string.widget_all_settled_title))
+                            views.setTextViewText(R.id.widget_upcoming_subtext, context.getString(R.string.widget_all_settled_desc))
+                            views.setTextColor(R.id.widget_upcoming_subtext, ContextCompat.getColor(context, R.color.dark_text_secondary))
+                            views.setImageViewResource(R.id.widget_upcoming_icon, R.drawable.ic_widget_check)
                         } else {
-                            views.setTextViewText(R.id.widget_upcoming_service_and_due, "Belum ada tagihan aktif")
-                            views.setTextViewText(R.id.widget_upcoming_subtext, "Tekan + untuk mencatat cicilan")
+                            views.setTextViewText(R.id.widget_upcoming_service_and_due, context.getString(R.string.widget_no_bills_title))
+                            views.setTextViewText(R.id.widget_upcoming_subtext, context.getString(R.string.widget_no_bills_desc))
+                            views.setTextColor(R.id.widget_upcoming_subtext, ContextCompat.getColor(context, R.color.dark_text_secondary))
+                            views.setImageViewResource(R.id.widget_upcoming_icon, R.drawable.ic_widget_calendar)
                         }
                         views.setViewVisibility(R.id.widget_upcoming_amount, View.GONE)
                     }
@@ -164,7 +211,10 @@ class LunasWidgetProvider : AppWidgetProvider() {
 
                     appWidgetManager.updateAppWidget(widgetId, views)
                 }
+            } finally {
+                pendingResult?.finish()
             }
         }
     }
+}
 }

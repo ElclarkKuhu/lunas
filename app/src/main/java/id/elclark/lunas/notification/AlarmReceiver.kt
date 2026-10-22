@@ -10,7 +10,7 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         id.elclark.lunas.widget.LunasWidgetProvider.updateAllWidgets(context)
 
-        val dbHelper = LunasDatabaseHelper(context)
+        val dbHelper = LunasDatabaseHelper.getInstance(context)
         val settings = dbHelper.getSettings()
 
         if (settings.notificationsEnabled) {

@@ -57,6 +57,18 @@ object DateUtils {
         return "$monthName ${parsed.year}"
     }
 
+    fun formatYearMonthDisplay(ym: String, locale: Locale = Locale.getDefault()): String {
+        val parsed = parseYearMonth(ym)
+        return if (locale.language.equals("id", ignoreCase = true)) {
+            val monthName = ID_MONTH_NAMES_FULL.getOrElse(parsed.monthValue - 1) { parsed.month.name }
+            "$monthName ${parsed.year}"
+        } else {
+            val monthName = parsed.month.getDisplayName(java.time.format.TextStyle.FULL, locale)
+                .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
+            "$monthName ${parsed.year}"
+        }
+    }
+
     fun formatYearMonthShort(ym: String): String {
         val parsed = parseYearMonth(ym)
         val monthName = ID_MONTH_NAMES_SHORT.getOrElse(parsed.monthValue - 1) { parsed.month.name }
@@ -116,6 +128,21 @@ object DateUtils {
     fun formatDueDate(dueDate: LocalDate): String {
         val monthShort = ID_MONTH_NAMES_SHORT.getOrElse(dueDate.monthValue - 1) { "" }
         return "${dueDate.dayOfMonth} $monthShort ${dueDate.year}"
+    }
+
+    fun formatDueDateShort(dueDate: LocalDate, locale: Locale = Locale.getDefault()): String {
+        val currentYear = LocalDate.now().year
+        val isId = locale.language.equals("id", ignoreCase = true)
+        val monthShort = if (isId) {
+            ID_MONTH_NAMES_SHORT.getOrElse(dueDate.monthValue - 1) { "" }
+        } else {
+            dueDate.month.getDisplayName(java.time.format.TextStyle.SHORT, locale)
+        }
+        return if (dueDate.year == currentYear) {
+            "${dueDate.dayOfMonth} $monthShort"
+        } else {
+            "${dueDate.dayOfMonth} $monthShort ${dueDate.year}"
+        }
     }
 
     fun daysUntil(targetDate: LocalDate): Int {

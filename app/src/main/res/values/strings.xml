@@ -136,9 +136,18 @@
     <string name="widget_add_content_description">Tambah Tagihan Baru</string>
     <string name="widget_total_month">TOTAL BULAN INI</string>
     <string name="widget_paid_status">Semua Lunas</string>
-    <string name="widget_due_status">0/0 Lunas</string>
+    <string name="widget_paid_status_count">Semua Lunas (%1$d/%2$d)</string>
+    <string name="widget_due_status">%1$d/%2$d Lunas</string>
     <string name="widget_neutral_status">Tidak Ada Tagihan</string>
     <string name="widget_due_title">Jatuh Tempo Berikutnya</string>
     <string name="widget_upcoming_due">Jatuh tempo</string>
     <string name="widget_no_upcoming">Tidak ada tagihan tertunda</string>
+    <string name="widget_all_settled_title">Semua tagihan bulan ini beres!</string>
+    <string name="widget_all_settled_desc">Tidak ada pembayaran tertunda</string>
+    <string name="widget_no_bills_title">Belum ada tagihan aktif</string>
+    <string name="widget_no_bills_desc">Tekan + untuk mencatat cicilan</string>
+    <string name="widget_due_today">Jatuh tempo HARI INI (%1$s)</string>
+    <string name="widget_due_tomorrow">Jatuh tempo BESOK (%1$s)</string>
+    <string name="widget_due_days">Jatuh tempo %1$s (%2$d hr lagi)</string>
+    <string name="widget_due_overdue">Telat %1$d hari (%2$s)</string>
 </resources>

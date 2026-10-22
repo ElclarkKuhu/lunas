@@ -22,6 +22,8 @@ object NotificationHelper {
     private const val CHANNEL_NAME = "Pengingat Tagihan Lunas"
     private const val ALARM_REQUEST_CODE = 1001
     const val TEST_NOTIFICATION_ID = 1099
+    const val EXTRA_TARGET_YM = "extra_target_ym"
+    const val EXTRA_SERVICE_ID = "extra_service_id"
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -128,12 +130,16 @@ object NotificationHelper {
         context: Context,
         notificationId: Int,
         title: String,
-        message: String
+        message: String,
+        targetYm: String? = null,
+        serviceId: String? = null
     ) {
         createNotificationChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (targetYm != null) putExtra(EXTRA_TARGET_YM, targetYm)
+            if (serviceId != null) putExtra(EXTRA_SERVICE_ID, serviceId)
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -173,7 +179,7 @@ object NotificationHelper {
     }
 
     fun checkAndNotifyBills(context: Context) {
-        val dbHelper = LunasDatabaseHelper(context)
+        val dbHelper = LunasDatabaseHelper.getInstance(context)
         val settings = dbHelper.getSettings()
 
         if (!settings.notificationsEnabled) return
@@ -221,7 +227,9 @@ object NotificationHelper {
                         context,
                         notifId,
                         context.getString(R.string.notification_cutoff_title, svc.name),
-                        context.getString(R.string.notification_cutoff_message, formattedAmount, dueDateFormatted)
+                        context.getString(R.string.notification_cutoff_message, formattedAmount, dueDateFormatted),
+                        targetYm = ym,
+                        serviceId = svc.id
                     )
                 }
 
@@ -234,7 +242,9 @@ object NotificationHelper {
                         context,
                         dueNotifId,
                         context.getString(R.string.notification_due_today_title, svc.name),
-                        context.getString(R.string.notification_due_today_message, formattedAmount)
+                        context.getString(R.string.notification_due_today_message, formattedAmount),
+                        targetYm = ym,
+                        serviceId = svc.id
                     )
                 }
                 // Approaching due date: H-reminderDaysBefore
@@ -243,7 +253,9 @@ object NotificationHelper {
                         context,
                         dueNotifId,
                         context.getString(R.string.notification_due_soon_title, svc.name, daysUntil),
-                        context.getString(R.string.notification_due_soon_message, formattedAmount, dueDateFormatted)
+                        context.getString(R.string.notification_due_soon_message, formattedAmount, dueDateFormatted),
+                        targetYm = ym,
+                        serviceId = svc.id
                     )
                 }
                 // Overdue: 1 day past due date
@@ -252,7 +264,9 @@ object NotificationHelper {
                         context,
                         dueNotifId,
                         context.getString(R.string.notification_overdue_title, svc.name),
-                        context.getString(R.string.notification_overdue_message, formattedAmount, dueDateFormatted)
+                        context.getString(R.string.notification_overdue_message, formattedAmount, dueDateFormatted),
+                        targetYm = ym,
+                        serviceId = svc.id
                     )
                 }
             }

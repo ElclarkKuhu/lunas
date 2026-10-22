@@ -1,5 +1,6 @@
 package id.elclark.lunas.model
 
+import java.time.LocalDate
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -65,7 +66,8 @@ data class MonthlyServiceStatement(
     val dueDateText: String,       // e.g. "1 Nov 2026"
     val daysUntilDue: Int,
     val isDueSoon: Boolean,        // within 3 days
-    val isOverdue: Boolean
+    val isOverdue: Boolean,
+    val dueDate: LocalDate? = null
 )
 
 data class MonthlyOverview(

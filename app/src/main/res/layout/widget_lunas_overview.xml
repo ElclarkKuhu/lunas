@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="14dp">
 
     <!-- Header: Logo, Title, Month, and Action Buttons -->
     <LinearLayout
@@ -16,8 +16,8 @@
 
         <ImageView
             android:id="@+id/widget_logo"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:contentDescription="@string/widget_logo_content_description"
             android:src="@drawable/ic_lunas_logo" />
 
@@ -25,20 +25,22 @@
             android:id="@+id/widget_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="7dp"
             android:text="@string/common_lunas"
             android:textColor="@color/dark_text_primary"
-            android:textSize="15sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_month_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="6dp"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="Oktober 2026"
             android:textColor="@color/dark_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="11.5sp" />
 
         <!-- Spacer using FrameLayout (RemoteViews compliant) -->
         <FrameLayout
@@ -49,61 +51,52 @@
         <!-- Refresh Button -->
         <ImageButton
             android:id="@+id/widget_btn_refresh"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
             android:background="@drawable/widget_btn_bg"
             android:contentDescription="@string/widget_refresh_content_description"
-            android:padding="7dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_widget_refresh" />
 
         <!-- Quick Add Bill Button -->
         <ImageButton
             android:id="@+id/widget_btn_add"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
             android:layout_marginStart="6dp"
             android:background="@drawable/widget_btn_bg"
             android:contentDescription="@string/widget_add_content_description"
-            android:padding="6dp"
+            android:padding="5dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_widget_add" />
     </LinearLayout>
 
-    <!-- Main Summary: Total Due & Status Badge -->
+    <!-- Main Summary: Label + Status Badge (Row 1), Total Due (Row 2), Progress Bar (Row 3) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/widget_label_total"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:letterSpacing="0.04"
-            android:text="@string/widget_total_month"
-            android:textColor="@color/dark_text_muted"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
+        <!-- Row 1: Label on Left, Status Badge on Right -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/widget_total_amount"
+                android:id="@+id/widget_label_total"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:ellipsize="end"
+                android:letterSpacing="0.04"
                 android:maxLines="1"
-                android:text="Rp 0"
-                android:textColor="@color/dark_text_primary"
-                android:textSize="22sp"
+                android:text="@string/widget_total_month"
+                android:textColor="@color/dark_text_muted"
+                android:textSize="10sp"
                 android:textStyle="bold" />
 
             <!-- Paid Status Badge -->
@@ -111,15 +104,17 @@
                 android:id="@+id/widget_status_badge_paid"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:background="@drawable/widget_badge_paid"
-                android:paddingStart="9dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="9dp"
-                android:paddingBottom="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
                 android:text="@string/widget_paid_status"
                 android:textColor="@color/on_primary_green_container"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
@@ -128,15 +123,17 @@
                 android:id="@+id/widget_status_badge_due"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:background="@drawable/widget_badge_due_soon"
-                android:paddingStart="9dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="9dp"
-                android:paddingBottom="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
                 android:text="@string/widget_due_status"
                 android:textColor="@color/status_due_soon"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
@@ -145,26 +142,41 @@
                 android:id="@+id/widget_status_badge_neutral"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:background="@drawable/widget_badge_neutral"
-                android:paddingStart="9dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="9dp"
-                android:paddingBottom="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
                 android:text="@string/widget_neutral_status"
                 android:textColor="@color/dark_text_secondary"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
                 android:visibility="visible" />
         </LinearLayout>
 
-        <!-- Bill Completion Progress Bar -->
+        <!-- Row 2: Total Due Amount (Dedicated Full Width Row) -->
+        <TextView
+            android:id="@+id/widget_total_amount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Rp 0"
+            android:textColor="@color/dark_text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <!-- Row 3: Bill Completion Progress Bar -->
         <ProgressBar
             android:id="@+id/widget_progress_bar"
             style="@android:style/Widget.ProgressBar.Horizontal"
             android:layout_width="match_parent"
-            android:layout_height="6dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="5dp"
+            android:layout_marginTop="7dp"
             android:max="100"
             android:progress="0"
             android:progressBackgroundTint="@color/dark_border"
@@ -190,8 +202,9 @@
 
         <ImageView
             android:id="@+id/widget_upcoming_icon"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center_vertical"
             android:contentDescription="@string/widget_upcoming_due"
             android:src="@drawable/ic_widget_calendar" />
 
@@ -202,37 +215,50 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/widget_upcoming_service_and_due"
+            <!-- Card Row 1: Service Name (left) & Upcoming Amount (right) -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="@string/widget_due_title"
-                android:textColor="@color/dark_text_primary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
+                <TextView
+                    android:id="@+id/widget_upcoming_service_and_due"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/widget_due_title"
+                    android:textColor="@color/dark_text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_upcoming_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Rp 0"
+                    android:textColor="@color/dark_text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Card Row 2: Due Date Description / Status Subtext (Full Width) -->
             <TextView
                 android:id="@+id/widget_upcoming_subtext"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="@string/widget_no_upcoming"
                 android:textColor="@color/dark_text_secondary"
-                android:textSize="10sp" />
+                android:textSize="10.5sp" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/widget_upcoming_amount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Rp 0"
-            android:textColor="@color/dark_text_primary"
-            android:textSize="12sp"
-            android:textStyle="bold" />
     </LinearLayout>
 
 </LinearLayout>

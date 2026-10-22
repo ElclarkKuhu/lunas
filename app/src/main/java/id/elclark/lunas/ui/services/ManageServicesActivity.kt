@@ -349,10 +349,10 @@ private fun ServiceFormBottomSheet(
     onSave: (PaylaterService) -> Unit
 ) {
     val isEdit = service != null
-    var name by remember { mutableStateOf(service?.name ?: "") }
-    var cutoffDayText by remember { mutableStateOf((service?.billingCutoffDay ?: 20).toString()) }
-    var dueDayText by remember { mutableStateOf((service?.dueDay ?: 1).toString()) }
-    var dueOffset by remember { mutableIntStateOf(service?.dueMonthOffset ?: 1) }
+    var name by remember(service?.id) { mutableStateOf(service?.name ?: "") }
+    var cutoffDayText by remember(service?.id) { mutableStateOf((service?.billingCutoffDay ?: 20).toString()) }
+    var dueDayText by remember(service?.id) { mutableStateOf((service?.dueDay ?: 1).toString()) }
+    var dueOffset by remember(service?.id) { mutableIntStateOf(service?.dueMonthOffset ?: 1) }
 
     val presetColors = listOf(
         0xFFEE4D2D, // Shopee Orange
@@ -364,7 +364,7 @@ private fun ServiceFormBottomSheet(
         0xFF00897B, // Teal
         0xFFD81B60  // Pink
     )
-    var selectedColor by remember { mutableLongStateOf(service?.colorHex ?: presetColors.first()) }
+    var selectedColor by remember(service?.id) { mutableLongStateOf(service?.colorHex ?: presetColors.first()) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

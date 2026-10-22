@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.4
+
+- **Robust Math Parser & Expression Evaluation**:
+  - Fixed unary vs. binary subtraction and negative number parsing in bill amount calculations.
+  - Added arithmetic overflow safeguards preventing invalid or negative statement totals.
+- **Total Owed & Summary Partitioning**:
+  - Fixed active vs. archived service partitioning in `computeTotalOwed` to ensure accurate summary totals, overdue calculations, and bill counts.
+- **Asynchronous App Widget Updates**:
+  - Switched `LunasWidgetProvider` updates to `goAsync()` on background dispatchers to eliminate UI thread blocking and ANR risks.
+  - Added visual status badges and iconography for overdue statements and up-to-date accounts.
+- **Smooth Month Pager Performance**:
+  - Hoisted month calculations and optimized Compose state subscriptions across `HorizontalPager` pages to eliminate frame drops during month swiping.
+- **Notification Navigation & Backstack Routing**:
+  - Improved reminder notifications with proper deep linking and synthetic backstack so tapping notifications navigates smoothly into the target statement without dropping app state.
+- **Backup & Restore Data Integrity**:
+  - Preserved original record creation timestamps during JSON restore.
+  - Fixed `merge=false` full restore behavior to cleanly wipe existing records before restoring.
+- **Validation & State Consistency**:
+  - Enforced strict tenor validation (`tenor > 0`) preventing invalid installment schedules.
+  - Fixed Compose `remember` keys in `AddBillBottomSheet` and services management to prevent stale dialog state when switching items.
+  - Isolated background coroutine operations under `SupervisorJob` to prevent child cancellation cascading.
+- **Comprehensive Unit Testing**:
+  - Added unit test suites covering math parsing edge cases, month arithmetic, and summary computation partitioning.
+
 ## 1.3
 
 - **Automatic Sort by Unpaid**: Paylater statements on the main screen are now sorted with active unpaid bills at the top (ordered by urgency: overdue first, then closest due date), followed by paid bills, and inactive services at the bottom, with smooth list transition animations.

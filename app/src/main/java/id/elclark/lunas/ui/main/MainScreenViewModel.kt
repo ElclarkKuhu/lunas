@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 sealed interface MainUiState {
     data object Loading : MainUiState
     data class Success(
-        val overview: MonthlyOverview,
         val services: List<PaylaterService>,
         val items: List<BillItem>,
         val payments: List<PaymentStatus>,
@@ -38,17 +37,14 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             val lockStateFlow = combine(repository.settings, _isUnlocked) { s, u -> s to u }
             combine(
-                _selectedYm,
                 repository.services,
                 repository.items,
                 repository.payments,
                 lockStateFlow
-            ) { ym, services, items, payments, lockState ->
+            ) { services, items, payments, lockState ->
                 val (settings, unlocked) = lockState
-                val overview = repository.computeMonthlyOverview(ym, services, items, payments)
                 val isLocked = settings.biometricEnabled && !unlocked
                 MainUiState.Success(
-                    overview = overview,
                     services = services,
                     items = items,
                     payments = payments,
@@ -124,12 +120,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         tenor: Int,
         startMonth: String
     ) {
+        val safeTenor = tenor.coerceAtLeast(1)
         viewModelScope.launch {
             repository.addBillItem(
                 serviceId = serviceId,
-                title = title.ifBlank { "Cicilan ${tenor}x" },
+                title = title.ifBlank { "Cicilan ${safeTenor}x" },
                 amountPerMonth = amountPerMonth,
-                totalTenor = tenor,
+                totalTenor = safeTenor,
                 startYearMonth = startMonth
             )
         }
@@ -162,13 +159,14 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         tenor: Int,
         startMonth: String
     ) {
+        val safeTenor = tenor.coerceAtLeast(1)
         viewModelScope.launch {
             repository.updateBillItem(
                 id = id,
                 serviceId = serviceId,
-                title = title.ifBlank { "Cicilan ${tenor}x" },
+                title = title.ifBlank { "Cicilan ${safeTenor}x" },
                 amountPerMonth = amountPerMonth,
-                totalTenor = tenor,
+                totalTenor = safeTenor,
                 startYearMonth = startMonth,
                 rawMathExpression = null
             )

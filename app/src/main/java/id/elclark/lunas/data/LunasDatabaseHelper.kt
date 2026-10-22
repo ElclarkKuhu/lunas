@@ -47,6 +47,15 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         const val TABLE_SETTINGS = "settings"
         const val COL_SETTING_KEY = "key"
         const val COL_SETTING_VAL = "value"
+
+        @Volatile
+        private var INSTANCE: LunasDatabaseHelper? = null
+
+        fun getInstance(context: Context): LunasDatabaseHelper {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: LunasDatabaseHelper(context.applicationContext).also { INSTANCE = it }
+            }
+        }
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -189,7 +198,7 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
                         serviceId = c.getString(c.getColumnIndexOrThrow(COL_ITEM_SERVICE_ID)),
                         title = c.getString(c.getColumnIndexOrThrow(COL_ITEM_TITLE)),
                         amountPerMonth = c.getLong(c.getColumnIndexOrThrow(COL_ITEM_AMOUNT)),
-                        totalTenor = c.getInt(c.getColumnIndexOrThrow(COL_ITEM_TENOR)),
+                        totalTenor = c.getInt(c.getColumnIndexOrThrow(COL_ITEM_TENOR)).coerceAtLeast(1),
                         startYearMonth = c.getString(c.getColumnIndexOrThrow(COL_ITEM_START_YM)),
                         rawMathExpression = c.getString(c.getColumnIndexOrThrow(COL_ITEM_MATH)),
                         createdAt = c.getLong(c.getColumnIndexOrThrow(COL_ITEM_CREATED))
@@ -207,7 +216,7 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
             put(COL_ITEM_SERVICE_ID, item.serviceId)
             put(COL_ITEM_TITLE, item.title)
             put(COL_ITEM_AMOUNT, item.amountPerMonth)
-            put(COL_ITEM_TENOR, item.totalTenor)
+            put(COL_ITEM_TENOR, item.totalTenor.coerceAtLeast(1))
             put(COL_ITEM_START_YM, item.startYearMonth)
             put(COL_ITEM_MATH, item.rawMathExpression)
             put(COL_ITEM_CREATED, item.createdAt)
@@ -218,6 +227,11 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
     fun deleteItem(itemId: String) {
         val db = writableDatabase
         db.delete(TABLE_ITEMS, "$COL_ITEM_ID = ?", arrayOf(itemId))
+    }
+
+    fun deleteAllItems() {
+        val db = writableDatabase
+        db.delete(TABLE_ITEMS, null, null)
     }
 
     // CRUD for Payment Status
@@ -240,13 +254,18 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         return list
     }
 
-    fun setPaymentStatus(serviceId: String, yearMonth: String, isPaid: Boolean) {
+    fun setPaymentStatus(
+        serviceId: String,
+        yearMonth: String,
+        isPaid: Boolean,
+        paidAt: Long? = if (isPaid) System.currentTimeMillis() else null
+    ) {
         val db = writableDatabase
         val cv = ContentValues().apply {
             put(COL_PAYMENT_SERVICE_ID, serviceId)
             put(COL_PAYMENT_YM, yearMonth)
             put(COL_PAYMENT_IS_PAID, if (isPaid) 1 else 0)
-            put(COL_PAYMENT_PAID_AT, if (isPaid) System.currentTimeMillis() else null)
+            put(COL_PAYMENT_PAID_AT, if (isPaid) (paidAt ?: System.currentTimeMillis()) else null)
         }
         db.insertWithOnConflict(TABLE_PAYMENTS, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -342,7 +361,7 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
 
             for (s in services) upsertService(s)
             for (i in items) insertItem(i)
-            for (p in payments) setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid)
+            for (p in payments) setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid, p.paidAt)
             saveSettings(settings)
 
             db.setTransactionSuccessful()

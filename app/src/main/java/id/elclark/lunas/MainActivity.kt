@@ -23,11 +23,12 @@ import id.elclark.lunas.widget.LunasWidgetProvider
 class MainActivity : FragmentActivity() {
 
   private val openAddBillState = mutableStateOf(false)
+  private val targetYmState = mutableStateOf<String?>(null)
 
   private val requestNotificationPermissionLauncher =
     registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
       if (isGranted) {
-        val dbHelper = LunasDatabaseHelper(this)
+        val dbHelper = LunasDatabaseHelper.getInstance(this)
         val settings = dbHelper.getSettings()
         if (settings.notificationsEnabled) {
           NotificationHelper.scheduleDailyAlarm(this, settings.reminderHour, settings.reminderMinute)
@@ -40,7 +41,7 @@ class MainActivity : FragmentActivity() {
 
     NotificationHelper.createNotificationChannel(this)
 
-    val dbHelper = LunasDatabaseHelper(this)
+    val dbHelper = LunasDatabaseHelper.getInstance(this)
     val settings = dbHelper.getSettings()
     if (settings.notificationsEnabled) {
       NotificationHelper.scheduleDailyAlarm(this, settings.reminderHour, settings.reminderMinute)
@@ -51,7 +52,7 @@ class MainActivity : FragmentActivity() {
       }
     }
 
-    checkAddBillIntent(intent)
+    checkIntents(intent)
 
     enableEdgeToEdge()
     setContent {
@@ -59,7 +60,9 @@ class MainActivity : FragmentActivity() {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
           MainNavigation(
             initialOpenAddSheet = openAddBillState.value,
-            onAddSheetOpened = { openAddBillState.value = false }
+            onAddSheetOpened = { openAddBillState.value = false },
+            initialTargetYm = targetYmState.value,
+            onTargetYmHandled = { targetYmState.value = null }
           )
         }
       }
@@ -69,13 +72,17 @@ class MainActivity : FragmentActivity() {
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     setIntent(intent)
-    checkAddBillIntent(intent)
+    checkIntents(intent)
   }
 
-  private fun checkAddBillIntent(intent: Intent?) {
-    if (intent?.action == LunasWidgetProvider.ACTION_ADD_BILL ||
-        intent?.getBooleanExtra(LunasWidgetProvider.EXTRA_OPEN_ADD_BILL, false) == true) {
+  private fun checkIntents(intent: Intent?) {
+    if (intent == null) return
+    if (intent.action == LunasWidgetProvider.ACTION_ADD_BILL ||
+        intent.getBooleanExtra(LunasWidgetProvider.EXTRA_OPEN_ADD_BILL, false)) {
       openAddBillState.value = true
+    }
+    intent.getStringExtra(NotificationHelper.EXTRA_TARGET_YM)?.let {
+      targetYmState.value = it
     }
   }
 }

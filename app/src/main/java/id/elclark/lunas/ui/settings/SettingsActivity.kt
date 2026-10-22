@@ -97,6 +97,8 @@ fun SettingsScreen(
     val biometricUnavailableText = stringResource(R.string.settings_biometric_unavailable)
     val noLinkAppText = stringResource(R.string.settings_no_link_app)
     val backupCopiedText = stringResource(R.string.settings_copy_backup_success)
+    val notificationPermissionDeniedText = stringResource(R.string.settings_notification_permission_denied)
+    val testNotificationSentText = stringResource(R.string.settings_test_notification_sent)
     val appVersion = remember {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
     }
@@ -159,7 +161,7 @@ fun SettingsScreen(
         } else {
             Toast.makeText(
                 context,
-                context.getString(R.string.settings_notification_permission_denied),
+                notificationPermissionDeniedText,
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -434,9 +436,9 @@ fun SettingsScreen(
                                 } else {
                                     val sent = NotificationHelper.showTestNotification(context)
                                     if (sent) {
-                                        Toast.makeText(context, context.getString(R.string.settings_test_notification_sent), Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, testNotificationSentText, Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, context.getString(R.string.settings_notification_permission_denied), Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, notificationPermissionDeniedText, Toast.LENGTH_LONG).show()
                                         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                                             putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                                         }

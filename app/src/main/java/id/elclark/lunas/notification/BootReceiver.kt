@@ -9,7 +9,7 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
-            val dbHelper = LunasDatabaseHelper(context)
+            val dbHelper = LunasDatabaseHelper.getInstance(context)
             val settings = dbHelper.getSettings()
             if (settings.notificationsEnabled) {
                 NotificationHelper.scheduleDailyAlarm(context, settings.reminderHour, settings.reminderMinute)

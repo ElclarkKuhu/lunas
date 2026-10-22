@@ -41,6 +41,8 @@ fun MainScreen(
     viewModel: MainScreenViewModel = viewModel(),
     initialOpenAddSheet: Boolean = false,
     onAddSheetOpened: () -> Unit = {},
+    initialTargetYm: String? = null,
+    onTargetYmHandled: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToManageServices: () -> Unit = {}
 ) {
@@ -60,6 +62,17 @@ fun MainScreen(
 
     LaunchedEffect(currentPagerYm) {
         viewModel.setYearMonth(currentPagerYm)
+    }
+
+    LaunchedEffect(initialTargetYm) {
+        if (!initialTargetYm.isNullOrBlank()) {
+            val diff = DateUtils.monthDifference(baseYm, initialTargetYm)
+            val targetPage = initialPage + diff
+            if (targetPage in 0 until 2400) {
+                pagerState.scrollToPage(targetPage)
+            }
+            onTargetYmHandled()
+        }
     }
 
     var showAddSheet by remember { mutableStateOf(false) }
@@ -106,6 +119,10 @@ fun MainScreen(
                     modifier = modifier
                 )
             } else {
+                val totalOwedSummary = remember(state.services, state.items, state.payments) {
+                    viewModel.computeTotalOwed()
+                }
+
                 Scaffold(
                     topBar = {
                         TopAppBar(
@@ -267,9 +284,6 @@ fun MainScreen(
                             val overview = remember(pageYm, state.services, state.items, state.payments) {
                                 viewModel.computeOverview(pageYm)
                             }
-                            val totalOwedSummary = remember(state.services, state.items, state.payments) {
-                                viewModel.computeTotalOwed()
-                            }
 
                             LazyColumn(
                                 modifier = Modifier
@@ -425,9 +439,6 @@ fun MainScreen(
                     }
 
                     if (showTotalOwedSheet) {
-                        val totalOwedSummary = remember(state.services, state.items, state.payments) {
-                            viewModel.computeTotalOwed()
-                        }
                         TotalOwedBottomSheet(
                             summary = totalOwedSummary,
                             currencyCode = state.settings.currencyCode,

@@ -1,4 +1,4 @@
-﻿package id.elclark.lunas.util
+package id.elclark.lunas.util
 
 object MathParser {
 
@@ -10,67 +10,118 @@ object MathParser {
     )
 
     /**
-     * Parses a string such as "12182 + 4252 + 1000 + 98744" or "12.182 + 4.252".
-     * Ignores currency prefixes like "Rp", trims spaces, handles "+" and "-".
+     * Parses a string such as "12182 + 4252 + 1000 + 98744", "50000 - 20000", or "12.182 - 4.252".
+     * Ignores currency prefixes like "Rp", trims spaces, handles "+", "-", and "*".
      */
     fun parse(input: String): ParseResult {
         if (input.isBlank()) {
             return ParseResult(emptyList(), 0L, false, "")
         }
 
-        // Clean input: remove "rp", "idr", commas, dots (if used as thousand separator)
-        var cleaned = input.lowercase()
+        // Clean input: remove "rp", "idr", replace unicode minuses and multiply symbols
+        val cleaned = input.lowercase()
             .replace("rp", "")
             .replace("idr", "")
+            .replace("×", "*")
+            .replace("x", "*")
+            .replace('−', '-')
+            .replace('–', '-')
+            .replace('—', '-')
             .trim()
 
-        // Replace common math signs
-        cleaned = cleaned.replace("×", "*").replace("x", "*")
+        if (cleaned.isEmpty()) {
+            return ParseResult(emptyList(), 0L, false, input)
+        }
 
-        // Split by operators while preserving them
-        // We match signed terms or split on '+'
         val terms = mutableListOf<Long>()
-        val tokens = cleaned.split("+")
-
         var runningSum = 0L
-        for (rawToken in tokens) {
-            val token = rawToken.trim()
-            if (token.isEmpty()) continue
+        val formattedBuilder = StringBuilder()
 
-            // If token contains multiplication (e.g. 3 * 115688)
-            if (token.contains("*")) {
-                val multParts = token.split("*")
-                if (multParts.size == 2) {
-                    val a = parseSingleNumber(multParts[0]) ?: return ParseResult(emptyList(), 0L, false, input)
-                    val b = parseSingleNumber(multParts[1]) ?: return ParseResult(emptyList(), 0L, false, input)
-                    val product = a * b
-                    terms.add(product)
-                    runningSum += product
-                    continue
+        var i = 0
+        val n = cleaned.length
+        var currentSign = 1L
+        var isFirstTerm = true
+
+        while (i < n) {
+            // Skip whitespace
+            while (i < n && cleaned[i].isWhitespace()) i++
+            if (i >= n) break
+
+            val c = cleaned[i]
+            if (c == '+' || c == '-') {
+                currentSign = if (c == '-') -1L else 1L
+                i++
+                while (i < n && cleaned[i].isWhitespace()) i++
+                if (i >= n || cleaned[i] == '+' || cleaned[i] == '-') {
+                    // Trailing or consecutive operators -> invalid
+                    return ParseResult(emptyList(), 0L, false, input)
                 }
-            }
-
-            // Normal single number
-            val num = parseSingleNumber(token)
-            if (num != null) {
-                terms.add(num)
-                runningSum += num
-            } else {
+            } else if (!isFirstTerm) {
+                // Two operands without an operator between them -> invalid
                 return ParseResult(emptyList(), 0L, false, input)
             }
+
+            // Read characters of the term until the next '+' or '-' (or end)
+            val termStart = i
+            while (i < n && cleaned[i] != '+' && cleaned[i] != '-') {
+                i++
+            }
+            val rawTerm = cleaned.substring(termStart, i).trim()
+            if (rawTerm.isEmpty()) {
+                return ParseResult(emptyList(), 0L, false, input)
+            }
+
+            // Evaluate term (may contain '*')
+            val termValue: Long
+            try {
+                if (rawTerm.contains("*")) {
+                    val multParts = rawTerm.split("*")
+                    if (multParts.any { it.isBlank() }) {
+                        return ParseResult(emptyList(), 0L, false, input)
+                    }
+                    var product = 1L
+                    for (part in multParts) {
+                        val num = parseSingleNumber(part) ?: return ParseResult(emptyList(), 0L, false, input)
+                        product = Math.multiplyExact(product, num)
+                    }
+                    termValue = product
+                } else {
+                    termValue = parseSingleNumber(rawTerm) ?: return ParseResult(emptyList(), 0L, false, input)
+                }
+
+                val signedValue = Math.multiplyExact(currentSign, termValue)
+                terms.add(signedValue)
+                runningSum = Math.addExact(runningSum, signedValue)
+            } catch (_: ArithmeticException) {
+                return ParseResult(emptyList(), 0L, false, input)
+            }
+
+            if (isFirstTerm) {
+                if (currentSign < 0) {
+                    formattedBuilder.append("- ")
+                }
+                formattedBuilder.append(DateUtils.formatRupiah(termValue, withPrefix = false))
+            } else {
+                if (currentSign < 0) {
+                    formattedBuilder.append(" - ")
+                } else {
+                    formattedBuilder.append(" + ")
+                }
+                formattedBuilder.append(DateUtils.formatRupiah(termValue, withPrefix = false))
+            }
+
+            isFirstTerm = false
         }
 
         if (terms.isEmpty()) {
             return ParseResult(emptyList(), 0L, false, input)
         }
 
-        val formatted = terms.joinToString(" + ") { DateUtils.formatRupiah(it, withPrefix = false) }
-
         return ParseResult(
             terms = terms,
             total = runningSum,
             isValid = true,
-            formattedExpression = formatted
+            formattedExpression = formattedBuilder.toString()
         )
     }
 

@@ -6,6 +6,7 @@ import id.elclark.lunas.util.DateUtils
 import id.elclark.lunas.widget.LunasWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
 
@@ -27,10 +29,88 @@ class LunasRepository(private val context: Context) {
                 INSTANCE ?: LunasRepository(context.applicationContext).also { INSTANCE = it }
             }
         }
+
+        fun calculateTotalOwed(
+            currentYm: String = DateUtils.currentYearMonth(),
+            allServices: List<PaylaterService>,
+            allItems: List<BillItem>,
+            allPayments: List<PaymentStatus>,
+            today: LocalDate = LocalDate.now()
+        ): TotalOwedSummary {
+            var grandTotal = 0L
+            var currentMonthRem = 0L
+            var futureInstallments = 0L
+            var pastOverdue = 0L
+            var latestYm: String? = null
+
+            val breakdowns = mutableListOf<ServiceDebtBreakdown>()
+
+            for (svc in allServices) {
+                val svcItems = allItems.filter { it.serviceId == svc.id }
+                if (svcItems.isEmpty()) continue
+
+                var svcDebt = 0L
+                var svcActiveInstallments = 0
+                var svcLatestYm: String? = null
+
+                for (item in svcItems) {
+                    var isInstallmentCounted = false
+                    for (t in 0 until item.totalTenor) {
+                        val ym = DateUtils.plusMonths(item.startYearMonth, t.toLong())
+                        val isPaid = allPayments.any { it.serviceId == svc.id && it.yearMonth == ym && it.isPaid }
+                        if (!isPaid) {
+                            svcDebt += item.amountPerMonth
+                            grandTotal += item.amountPerMonth
+
+                            val dueDate = DateUtils.computeDueDate(ym, svc.dueDay, svc.dueMonthOffset)
+                            val currentMonth = YearMonth.from(today)
+                            val dueMonth = YearMonth.from(dueDate)
+                            when {
+                                dueDate.isBefore(today) -> pastOverdue += item.amountPerMonth
+                                dueMonth == currentMonth -> currentMonthRem += item.amountPerMonth
+                                else -> futureInstallments += item.amountPerMonth
+                            }
+
+                            if (!isInstallmentCounted && item.totalTenor > 1) {
+                                svcActiveInstallments++
+                                isInstallmentCounted = true
+                            }
+
+                            if (svcLatestYm == null || ym > svcLatestYm) {
+                                svcLatestYm = ym
+                            }
+                            if (latestYm == null || ym > latestYm) {
+                                latestYm = ym
+                            }
+                        }
+                    }
+                }
+
+                if (svcDebt > 0) {
+                    breakdowns.add(
+                        ServiceDebtBreakdown(
+                            service = svc,
+                            remainingDebt = svcDebt,
+                            activeInstallmentsCount = svcActiveInstallments,
+                            latestMonth = svcLatestYm?.let { DateUtils.formatYearMonthFull(it) }
+                        )
+                    )
+                }
+            }
+
+            return TotalOwedSummary(
+                grandTotalOwed = grandTotal,
+                currentMonthRemaining = currentMonthRem,
+                futureInstallmentsOwed = futureInstallments,
+                pastOverdueOwed = pastOverdue,
+                latestEndMonth = latestYm?.let { DateUtils.formatYearMonthFull(it) },
+                serviceBreakdowns = breakdowns.sortedByDescending { it.remainingDebt }
+            )
+        }
     }
 
-    private val dbHelper = LunasDatabaseHelper(context)
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val dbHelper = LunasDatabaseHelper.getInstance(context)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _services = MutableStateFlow<List<PaylaterService>>(emptyList())
     val services: StateFlow<List<PaylaterService>> = _services.asStateFlow()
@@ -81,12 +161,13 @@ class LunasRepository(private val context: Context) {
         startYearMonth: String,
         rawMathExpression: String? = null
     ): BillItem = withContext(Dispatchers.IO) {
+        val validatedTenor = totalTenor.coerceAtLeast(1)
         val item = BillItem(
             id = UUID.randomUUID().toString(),
             serviceId = serviceId,
             title = title,
             amountPerMonth = amountPerMonth,
-            totalTenor = totalTenor,
+            totalTenor = validatedTenor,
             startYearMonth = startYearMonth,
             rawMathExpression = rawMathExpression,
             createdAt = System.currentTimeMillis()
@@ -105,13 +186,14 @@ class LunasRepository(private val context: Context) {
         startYearMonth: String,
         rawMathExpression: String? = null
     ) = withContext(Dispatchers.IO) {
+        val validatedTenor = totalTenor.coerceAtLeast(1)
         val existing = _items.value.find { it.id == id }
         val item = BillItem(
             id = id,
             serviceId = serviceId,
             title = title,
             amountPerMonth = amountPerMonth,
-            totalTenor = totalTenor,
+            totalTenor = validatedTenor,
             startYearMonth = startYearMonth,
             rawMathExpression = rawMathExpression,
             createdAt = existing?.createdAt ?: System.currentTimeMillis()
@@ -201,7 +283,8 @@ class LunasRepository(private val context: Context) {
                 dueDateText = DateUtils.formatDueDate(dueDate),
                 daysUntilDue = daysUntil,
                 isDueSoon = daysUntil in 0..3 && !isPaid,
-                isOverdue = daysUntil < 0 && !isPaid
+                isOverdue = daysUntil < 0 && !isPaid,
+                dueDate = dueDate
             )
 
             // If it has items or is a known default service, include it
@@ -242,74 +325,10 @@ class LunasRepository(private val context: Context) {
         currentYm: String = DateUtils.currentYearMonth(),
         allServices: List<PaylaterService>,
         allItems: List<BillItem>,
-        allPayments: List<PaymentStatus>
+        allPayments: List<PaymentStatus>,
+        today: LocalDate = LocalDate.now()
     ): TotalOwedSummary {
-        var grandTotal = 0L
-        var currentMonthRem = 0L
-        var futureInstallments = 0L
-        var pastOverdue = 0L
-        var latestYm: String? = null
-
-        val breakdowns = mutableListOf<ServiceDebtBreakdown>()
-
-        for (svc in allServices) {
-            val svcItems = allItems.filter { it.serviceId == svc.id }
-            if (svcItems.isEmpty()) continue
-
-            var svcDebt = 0L
-            var svcActiveInstallments = 0
-            var svcLatestYm: String? = null
-
-            for (item in svcItems) {
-                var isInstallmentCounted = false
-                for (t in 0 until item.totalTenor) {
-                    val ym = DateUtils.plusMonths(item.startYearMonth, t.toLong())
-                    val isPaid = allPayments.any { it.serviceId == svc.id && it.yearMonth == ym && it.isPaid }
-                    if (!isPaid) {
-                        svcDebt += item.amountPerMonth
-                        grandTotal += item.amountPerMonth
-
-                        when {
-                            ym < currentYm -> pastOverdue += item.amountPerMonth
-                            ym == currentYm -> currentMonthRem += item.amountPerMonth
-                            else -> futureInstallments += item.amountPerMonth
-                        }
-
-                        if (!isInstallmentCounted && item.totalTenor > 1) {
-                            svcActiveInstallments++
-                            isInstallmentCounted = true
-                        }
-
-                        if (svcLatestYm == null || ym > svcLatestYm) {
-                            svcLatestYm = ym
-                        }
-                        if (latestYm == null || ym > latestYm) {
-                            latestYm = ym
-                        }
-                    }
-                }
-            }
-
-            if (svcDebt > 0) {
-                breakdowns.add(
-                    ServiceDebtBreakdown(
-                        service = svc,
-                        remainingDebt = svcDebt,
-                        activeInstallmentsCount = svcActiveInstallments,
-                        latestMonth = svcLatestYm?.let { DateUtils.formatYearMonthFull(it) }
-                    )
-                )
-            }
-        }
-
-        return TotalOwedSummary(
-            grandTotalOwed = grandTotal,
-            currentMonthRemaining = currentMonthRem,
-            futureInstallmentsOwed = futureInstallments,
-            pastOverdueOwed = pastOverdue,
-            latestEndMonth = latestYm?.let { DateUtils.formatYearMonthFull(it) },
-            serviceBreakdowns = breakdowns.sortedByDescending { it.remainingDebt }
-        )
+        return calculateTotalOwed(currentYm, allServices, allItems, allPayments, today)
     }
 
     suspend fun exportBackupJson(): String = withContext(Dispatchers.IO) {
@@ -369,14 +388,32 @@ class LunasRepository(private val context: Context) {
                     ?: obj["name"]?.jsonPrimitive?.contentOrNull
                     ?: obj["keterangan"]?.jsonPrimitive?.contentOrNull
                     ?: "Tagihan"
-                val amount = obj["amountPerMonth"]?.jsonPrimitive?.longOrNull
-                    ?: obj["amount"]?.jsonPrimitive?.longOrNull
-                    ?: obj["nominal"]?.jsonPrimitive?.longOrNull
-                    ?: obj["totalAmount"]?.jsonPrimitive?.longOrNull
-                    ?: 0L
-                val tenor = obj["totalTenor"]?.jsonPrimitive?.intOrNull
+
+                fun parseAmount(vararg keys: String): Long {
+                    for (key in keys) {
+                        val el = obj[key] ?: continue
+                        val prim = el.jsonPrimitive
+                        prim.longOrNull?.let { return it }
+                        prim.doubleOrNull?.let { return it.toLong() }
+                        val content = prim.contentOrNull
+                        if (!content.isNullOrBlank()) {
+                            val sanitized = content.lowercase()
+                                .replace("rp", "")
+                                .replace("idr", "")
+                                .replace(".", "")
+                                .replace(",", "")
+                                .trim()
+                            sanitized.toLongOrNull()?.let { return it }
+                        }
+                    }
+                    return 0L
+                }
+
+                val amount = parseAmount("amountPerMonth", "amount", "nominal", "totalAmount")
+                val rawTenor = obj["totalTenor"]?.jsonPrimitive?.intOrNull
                     ?: obj["tenor"]?.jsonPrimitive?.intOrNull
                     ?: 1
+                val tenor = rawTenor.coerceAtLeast(1)
                 val startYm = obj["startYearMonth"]?.jsonPrimitive?.contentOrNull
                     ?: obj["startMonth"]?.jsonPrimitive?.contentOrNull
                     ?: obj["month"]?.jsonPrimitive?.contentOrNull
@@ -400,13 +437,19 @@ class LunasRepository(private val context: Context) {
             }
 
             fun validateImportedItems(items: List<BillItem>) {
-                items.forEach { YearMonth.parse(it.startYearMonth) }
+                items.forEach {
+                    YearMonth.parse(it.startYearMonth)
+                    require(it.totalTenor >= 1) { "Tenor must be at least 1" }
+                }
             }
 
             dbHelper.runInTransaction {
                 currentServices = dbHelper.getAllServices().toMutableList()
                 when (jsonElement) {
                     is JsonArray -> {
+                        if (!merge) {
+                            dbHelper.deleteAllItems()
+                        }
                         for (el in jsonElement) {
                             if (el is JsonObject) {
                                 val item = parseItem(el)
@@ -428,7 +471,7 @@ class LunasRepository(private val context: Context) {
                                     count++
                                 }
                                 for (p in backup.payments) {
-                                    dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid)
+                                    dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid, p.paidAt)
                                 }
                                 dbHelper.saveSettings(backup.settings)
                             } else {
@@ -439,6 +482,9 @@ class LunasRepository(private val context: Context) {
                         } else if (jsonElement.containsKey("items")) {
                             val itemsArray = jsonElement["items"]?.jsonArray
                             if (itemsArray != null) {
+                                if (!merge) {
+                                    dbHelper.deleteAllItems()
+                                }
                                 for (el in itemsArray) {
                                     if (el is JsonObject) {
                                         val item = parseItem(el)
@@ -448,6 +494,9 @@ class LunasRepository(private val context: Context) {
                                 }
                             }
                         } else if (jsonElement.containsKey("serviceId") || jsonElement.containsKey("service") || jsonElement.containsKey("amount")) {
+                            if (!merge) {
+                                dbHelper.deleteAllItems()
+                            }
                             val item = parseItem(jsonElement)
                             dbHelper.insertItem(item)
                             count++
@@ -463,7 +512,7 @@ class LunasRepository(private val context: Context) {
                                     count++
                                 }
                                 for (p in backup.payments) {
-                                    dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid)
+                                    dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid, p.paidAt)
                                 }
                             } else {
                                 dbHelper.clearAndRestoreAll(backup.services, backup.items, backup.payments, backup.settings)

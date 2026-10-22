@@ -14,4 +14,6 @@
     <color name="status_paid_bg">#13381B</color>
     <color name="status_due_soon">#D29922</color>
     <color name="status_due_soon_bg">#3D2E0B</color>
+    <color name="status_overdue">#F85149</color>
+    <color name="status_overdue_bg">#3D1B1B</color>
 </resources>

@@ -16,7 +16,9 @@ import id.elclark.lunas.ui.settings.SettingsScreen
 @Composable
 fun MainNavigation(
     initialOpenAddSheet: Boolean = false,
-    onAddSheetOpened: () -> Unit = {}
+    onAddSheetOpened: () -> Unit = {},
+    initialTargetYm: String? = null,
+    onTargetYmHandled: () -> Unit = {}
 ) {
   val backStack = rememberNavBackStack(Main)
   val context = LocalContext.current
@@ -37,6 +39,8 @@ fun MainNavigation(
             modifier = Modifier.fillMaxSize(),
             initialOpenAddSheet = initialOpenAddSheet,
             onAddSheetOpened = onAddSheetOpened,
+            initialTargetYm = initialTargetYm,
+            onTargetYmHandled = onTargetYmHandled,
             onNavigateToSettings = { backStack.add(Settings) },
             onNavigateToManageServices = { backStack.add(ManageServices) }
           )

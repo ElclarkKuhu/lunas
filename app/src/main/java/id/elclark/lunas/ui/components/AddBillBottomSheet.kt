@@ -51,32 +51,32 @@ fun AddBillBottomSheet(
     onOpenJsonImport: () -> Unit = {}
 ) {
     val isEditing = editingItem != null
-    var selectedServiceId by remember {
+    var selectedServiceId by remember(editingItem?.id, services) {
         mutableStateOf(editingItem?.serviceId ?: services.firstOrNull()?.id ?: "")
     }
-    var selectedTab by remember {
+    var selectedTab by remember(editingItem?.id) {
         mutableIntStateOf(if (editingItem?.rawMathExpression != null) 1 else 0)
     }
 
     // Cicilan state
-    var cicilanAmountText by remember {
+    var cicilanAmountText by remember(editingItem?.id) {
         mutableStateOf(if (editingItem != null && editingItem.rawMathExpression == null) editingItem.amountPerMonth.toString() else "")
     }
-    var cicilanTenor by remember {
-        mutableIntStateOf(if (editingItem != null && editingItem.rawMathExpression == null) editingItem.totalTenor else 1)
+    var cicilanTenor by remember(editingItem?.id) {
+        mutableIntStateOf(if (editingItem != null && editingItem.rawMathExpression == null) editingItem.totalTenor.coerceAtLeast(1) else 1)
     }
-    var cicilanTitle by remember {
+    var cicilanTitle by remember(editingItem?.id) {
         mutableStateOf(if (editingItem != null && editingItem.rawMathExpression == null) editingItem.title else "")
     }
-    var cicilanStartYm by remember {
+    var cicilanStartYm by remember(editingItem?.id, defaultYm) {
         mutableStateOf(editingItem?.startYearMonth ?: defaultYm)
     }
 
     // Scratchpad state
-    var scratchpadExpression by remember {
+    var scratchpadExpression by remember(editingItem?.id) {
         mutableStateOf(editingItem?.rawMathExpression ?: "")
     }
-    var scratchpadTitle by remember {
+    var scratchpadTitle by remember(editingItem?.id) {
         mutableStateOf(if (editingItem?.rawMathExpression != null) editingItem.title else "")
     }
     val mathResult = remember(scratchpadExpression) { MathParser.parse(scratchpadExpression) }
@@ -436,6 +436,7 @@ fun AddBillBottomSheet(
                 Button(
                     onClick = {
                         val amount = cicilanAmountText.toLongOrNull() ?: 0L
+                        val safeTenor = cicilanTenor.coerceAtLeast(1)
                         val itemToEdit = editingItem
                         if (itemToEdit != null && onUpdateCicilan != null) {
                             onUpdateCicilan.invoke(
@@ -443,7 +444,7 @@ fun AddBillBottomSheet(
                                 selectedServiceId,
                                 cicilanTitle,
                                 amount,
-                                cicilanTenor,
+                                safeTenor,
                                 cicilanStartYm
                             )
                         } else {
@@ -451,7 +452,7 @@ fun AddBillBottomSheet(
                                 selectedServiceId,
                                 cicilanTitle,
                                 amount,
-                                cicilanTenor,
+                                safeTenor,
                                 cicilanStartYm
                             )
                         }

@@ -20,7 +20,7 @@ class DataImportReceiver : BroadcastReceiver() {
                 val repository = LunasRepository.getInstance(context.applicationContext)
                 when (action) {
                     "id.elclark.lunas.RESTORE_USER_DATA", "com.example.lunas.RESTORE_USER_DATA" -> {
-                        val dbHelper = LunasDatabaseHelper(context.applicationContext)
+                        val dbHelper = LunasDatabaseHelper.getInstance(context.applicationContext)
                         val items = listOf(
                             BillItem(
                                 id = "spaylater-cicilan-3x",

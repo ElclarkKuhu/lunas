@@ -44,4 +44,25 @@ class DateUtilsTest {
         val nextMonthText = DateUtils.computeBillingCycleText("2026-10", 21, 1, 1)
         assertEquals("(21 Okt - 1 Nov)", nextMonthText)
     }
+
+    @Test
+    fun formatYearMonthDisplaySupportsLocales() {
+        val idLocale = java.util.Locale.forLanguageTag("id-ID")
+        val enLocale = java.util.Locale.forLanguageTag("en-US")
+        assertEquals("Oktober 2026", DateUtils.formatYearMonthDisplay("2026-10", idLocale))
+        assertEquals("October 2026", DateUtils.formatYearMonthDisplay("2026-10", enLocale))
+    }
+
+    @Test
+    fun formatDueDateShortFormatsCleanly() {
+        val currentYear = java.time.LocalDate.now().year
+        val dateThisYear = java.time.LocalDate.of(currentYear, 11, 1)
+        val idLocale = java.util.Locale.forLanguageTag("id-ID")
+        val enLocale = java.util.Locale.forLanguageTag("en-US")
+        assertEquals("1 Nov", DateUtils.formatDueDateShort(dateThisYear, idLocale))
+        assertEquals("1 Nov", DateUtils.formatDueDateShort(dateThisYear, enLocale))
+
+        val dateNextYear = java.time.LocalDate.of(currentYear + 1, 1, 15)
+        assertEquals("15 Jan " + (currentYear + 1), DateUtils.formatDueDateShort(dateNextYear, idLocale))
+    }
 }
