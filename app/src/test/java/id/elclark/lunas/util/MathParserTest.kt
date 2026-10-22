@@ -134,4 +134,47 @@ class MathParserTest {
         val overflowAdd = MathParser.parse("9223372036854775000 + 1000000")
         assertFalse(overflowAdd.isValid)
     }
+
+    @Test
+    fun parseChainedSubtractions() {
+        val result = MathParser.parse("100000 - 25000 - 15000")
+        assertTrue(result.isValid)
+        assertEquals(60000L, result.total)
+        assertEquals(listOf(100000L, -25000L, -15000L), result.terms)
+        assertEquals("100.000 - 25.000 - 15.000", result.formattedExpression)
+
+        val resultWithMult = MathParser.parse("100000 - 2 * 15000 - 20000")
+        assertTrue(resultWithMult.isValid)
+        assertEquals(50000L, resultWithMult.total)
+        assertEquals(listOf(100000L, -30000L, -20000L), resultWithMult.terms)
+        assertEquals("100.000 - 30.000 - 20.000", resultWithMult.formattedExpression)
+    }
+
+    @Test
+    fun parseZeroHandling() {
+        val resZero = MathParser.parse("0")
+        assertTrue(resZero.isValid)
+        assertEquals(0L, resZero.total)
+
+        val resAddZero = MathParser.parse("0 + 5000")
+        assertTrue(resAddZero.isValid)
+        assertEquals(5000L, resAddZero.total)
+
+        val resNetZero = MathParser.parse("50000 - 50000")
+        assertTrue(resNetZero.isValid)
+        assertEquals(0L, resNetZero.total)
+
+        val resMultZero = MathParser.parse("2 * 0")
+        assertTrue(resMultZero.isValid)
+        assertEquals(0L, resMultZero.total)
+    }
+
+    @Test
+    fun parseChainedMultiplications() {
+        val result = MathParser.parse("2 * 3 * 10000")
+        assertTrue(result.isValid)
+        assertEquals(60000L, result.total)
+        assertEquals(listOf(60000L), result.terms)
+        assertEquals("60.000", result.formattedExpression)
+    }
 }

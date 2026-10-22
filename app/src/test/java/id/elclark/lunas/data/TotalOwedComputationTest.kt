@@ -210,4 +210,58 @@ class TotalOwedComputationTest {
         assertEquals(50_000L, summary.currentMonthRemaining)
         assertEquals(120_000L, summary.futureInstallmentsOwed)
     }
+
+    @Test
+    fun includesArchivedServicesWithUnpaidBills() {
+        val archivedService = PaylaterService(
+            id = "archived_svc",
+            name = "Archived Paylater",
+            colorHex = 0xFF757575L,
+            billingCutoffDay = 20,
+            dueDay = 25,
+            dueMonthOffset = 0,
+            isActive = false
+        )
+        val item = createItem(id = "itemArchived", serviceId = "archived_svc", amount = 175_000L, startYm = "2026-10")
+        val today = LocalDate.of(2026, 10, 15)
+
+        val summary = LunasRepository.calculateTotalOwed(
+            currentYm = "2026-10",
+            allServices = listOf(archivedService),
+            allItems = listOf(item),
+            allPayments = emptyList(),
+            today = today
+        )
+
+        assertEquals(175_000L, summary.grandTotalOwed)
+        assertEquals(175_000L, summary.currentMonthRemaining)
+        assertEquals(1, summary.serviceBreakdowns.size)
+        assertEquals("Archived Paylater", summary.serviceBreakdowns.first().service.name)
+    }
+
+    @Test
+    fun returnsZeroSummaryWhenAllBillsArePaid() {
+        val service = createService(dueDay = 25, offset = 0)
+        val item = createItem(startYm = "2026-10", amount = 100_000L)
+        val today = LocalDate.of(2026, 10, 15)
+
+        val payments = listOf(
+            PaymentStatus(serviceId = service.id, yearMonth = "2026-10", isPaid = true)
+        )
+
+        val summary = LunasRepository.calculateTotalOwed(
+            currentYm = "2026-10",
+            allServices = listOf(service),
+            allItems = listOf(item),
+            allPayments = payments,
+            today = today
+        )
+
+        assertEquals(0L, summary.grandTotalOwed)
+        assertEquals(0L, summary.pastOverdueOwed)
+        assertEquals(0L, summary.currentMonthRemaining)
+        assertEquals(0L, summary.futureInstallmentsOwed)
+        org.junit.Assert.assertNull(summary.latestEndMonth)
+        org.junit.Assert.assertTrue(summary.serviceBreakdowns.isEmpty())
+    }
 }
