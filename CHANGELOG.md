@@ -7,9 +7,12 @@
   - Added arithmetic overflow safeguards preventing invalid or negative statement totals.
 - **Total Owed & Summary Partitioning**:
   - Fixed active vs. archived service partitioning in `computeTotalOwed` to ensure accurate summary totals, overdue calculations, and bill counts.
-- **Asynchronous App Widget Updates**:
+- **App Widget Layout Overhaul & Adjustments**:
+  - Redesigned widget layout with a dedicated full-width total amount row to prevent text truncation on large currency figures.
+  - Reorganized upcoming bill card with an optimized two-row layout (service name + amount on top, full-width status and due date description below) to eliminate text clipping.
+  - Updated widget month header to format using system locale instead of hardcoded month names.
+  - Added visual status badges and distinct icons (`ic_widget_check`, `ic_widget_warning`) for up-to-date and overdue accounts.
   - Switched `LunasWidgetProvider` updates to `goAsync()` on background dispatchers to eliminate UI thread blocking and ANR risks.
-  - Added visual status badges and iconography for overdue statements and up-to-date accounts.
 - **Smooth Month Pager Performance**:
   - Hoisted month calculations and optimized Compose state subscriptions across `HorizontalPager` pages to eliminate frame drops during month swiping.
 - **Notification Navigation & Backstack Routing**:
