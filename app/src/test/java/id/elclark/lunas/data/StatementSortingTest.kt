@@ -61,27 +61,56 @@ class StatementSortingTest {
 
     @Test
     fun sortsUnpaidBeforePaidAndEmptyAtBottom() {
-        val paidService = createStatement("s1", "SPayLater", hasItems = true, isPaid = true, daysUntilDue = 5)
-        val unpaidOverdue = createStatement("s2", "Kredivo", hasItems = true, isPaid = false, daysUntilDue = -1)
-        val unpaidDueSoon = createStatement("s3", "GoPayLater", hasItems = true, isPaid = false, daysUntilDue = 2)
-        val emptyService = createStatement("s4", "Indodana", hasItems = false, isPaid = false, daysUntilDue = 10)
+        val s1 = PaylaterService(id = "s1", name = "SPayLater", colorHex = 0xFF000000L, billingCutoffDay = 20, dueDay = 25, dueMonthOffset = 0, isActive = true)
+        val s2 = PaylaterService(id = "s2", name = "Kredivo", colorHex = 0xFF000000L, billingCutoffDay = 20, dueDay = 1, dueMonthOffset = 0, isActive = true)
+        val s3 = PaylaterService(id = "s3", name = "GoPayLater", colorHex = 0xFF000000L, billingCutoffDay = 20, dueDay = 15, dueMonthOffset = 0, isActive = true)
+        val s4 = PaylaterService(id = "s4", name = "Indodana", colorHex = 0xFF000000L, billingCutoffDay = 20, dueDay = 28, dueMonthOffset = 0, isActive = true)
 
-        val statements = listOf(paidService, emptyService, unpaidDueSoon, unpaidOverdue)
-
-        val sorted = statements.sortedWith(
-            compareBy<MonthlyServiceStatement> { statement ->
-                when {
-                    statement.items.isNotEmpty() && !statement.isPaid -> 0
-                    statement.items.isNotEmpty() && statement.isPaid -> 1
-                    else -> 2
-                }
-            }.thenBy { it.daysUntilDue }
-            .thenBy { it.service.name }
+        val items = listOf(
+            BillItem("i1", "s1", "Item 1", 50_000, 1, "2026-10"),
+            BillItem("i2", "s2", "Item 2", 50_000, 1, "2026-10"),
+            BillItem("i3", "s3", "Item 3", 50_000, 1, "2026-10")
+        )
+        // s1 is paid, s2 and s3 unpaid, s4 has no items
+        val payments = listOf(
+            id.elclark.lunas.model.PaymentStatus("s1", "2026-10", isPaid = true)
         )
 
-        assertEquals("Kredivo", sorted[0].service.name) // Unpaid overdue (-1)
-        assertEquals("GoPayLater", sorted[1].service.name) // Unpaid due soon (2)
-        assertEquals("SPayLater", sorted[2].service.name) // Paid (5)
+        val overview = LunasRepository.computeMonthlyOverview(
+            targetYm = "2026-10",
+            allServices = listOf(s1, s4, s3, s2),
+            allItems = items,
+            allPayments = payments
+        )
+
+        val sorted = overview.statements
+        assertEquals("Kredivo", sorted[0].service.name) // Unpaid (due day 1)
+        assertEquals("GoPayLater", sorted[1].service.name) // Unpaid (due day 15)
+        assertEquals("SPayLater", sorted[2].service.name) // Paid (due day 25)
         assertEquals("Indodana", sorted[3].service.name) // Empty (no items)
+    }
+
+    @Test
+    fun tieBreakerRespectsCustomServiceOrderThenName() {
+        // Both s1 and s2 have identical due day
+        val s1 = PaylaterService(id = "s1", name = "SPayLater", colorHex = 0xFF000000L, billingCutoffDay = 20, dueDay = 10, dueMonthOffset = 0, isActive = true)
+        val s2 = PaylaterService(id = "s2", name = "GoPayLater", colorHex = 0xFF000000L, billingCutoffDay = 20, dueDay = 10, dueMonthOffset = 0, isActive = true)
+
+        val items = listOf(
+            BillItem("i1", "s1", "Item 1", 50_000, 1, "2026-10"),
+            BillItem("i2", "s2", "Item 2", 50_000, 1, "2026-10")
+        )
+
+        // Custom order gives priority to s2
+        val overview = LunasRepository.computeMonthlyOverview(
+            targetYm = "2026-10",
+            allServices = listOf(s1, s2),
+            allItems = items,
+            allPayments = emptyList(),
+            serviceOrder = listOf("s2", "s1")
+        )
+
+        assertEquals("GoPayLater", overview.statements[0].service.name)
+        assertEquals("SPayLater", overview.statements[1].service.name)
     }
 }

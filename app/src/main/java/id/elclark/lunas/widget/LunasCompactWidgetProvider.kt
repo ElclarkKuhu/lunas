@@ -63,11 +63,17 @@ class LunasCompactWidgetProvider : AppWidgetProvider() {
                     val services = dbHelper.getAllServices()
                     val items = dbHelper.getAllItems()
                     val payments = dbHelper.getAllPaymentStatuses()
-                    val currencyCode = dbHelper.getSettings().currencyCode
+                    val settings = dbHelper.getSettings()
+                    val currencyCode = settings.currencyCode
 
-                    val repo = LunasRepository.getInstance(context)
                     val currentYm = DateUtils.currentYearMonth()
-                    val overview = repo.computeMonthlyOverview(currentYm, services, items, payments)
+                    val overview = LunasRepository.computeMonthlyOverview(
+                        targetYm = currentYm,
+                        allServices = services,
+                        allItems = items,
+                        allPayments = payments,
+                        serviceOrder = settings.serviceOrder
+                    )
 
                     for (widgetId in appWidgetIds) {
                         val views = RemoteViews(context.packageName, R.layout.widget_lunas_compact)

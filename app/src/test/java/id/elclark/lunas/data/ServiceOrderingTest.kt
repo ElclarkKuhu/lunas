@@ -26,15 +26,6 @@ class ServiceOrderingTest {
         )
     }
 
-    private fun sortServices(services: List<PaylaterService>, order: List<String>): List<PaylaterService> {
-        if (order.isEmpty()) return services
-        val orderMap = order.withIndex().associate { it.value to it.index }
-        return services.sortedWith(
-            compareBy<PaylaterService> { orderMap[it.id] ?: Int.MAX_VALUE }
-                .thenBy { it.name }
-        )
-    }
-
     @Test
     fun sortsServicesAccordingToCustomOrder() {
         val s1 = dummyService("s1", "SPayLater")
@@ -46,7 +37,7 @@ class ServiceOrderingTest {
 
         // Custom order: Yup first, then Kredivo, then SPayLater, then GoPayLater
         val customOrder = listOf("s3", "s4", "s1", "s2")
-        val sorted = sortServices(services, customOrder)
+        val sorted = LunasRepository.sortServices(services, customOrder)
 
         assertEquals("Yup", sorted[0].name)
         assertEquals("Kredivo", sorted[1].name)
@@ -66,7 +57,7 @@ class ServiceOrderingTest {
 
         // Custom order only specifies Yup and GoPayLater
         val customOrder = listOf("s3", "s2")
-        val sorted = sortServices(services, customOrder)
+        val sorted = LunasRepository.sortServices(services, customOrder)
 
         assertEquals("Yup", sorted[0].name)
         assertEquals("GoPayLater", sorted[1].name)
@@ -82,7 +73,7 @@ class ServiceOrderingTest {
         val s2 = dummyService("s2", "GoPayLater")
 
         val services = listOf(s1, s2)
-        val sorted = sortServices(services, emptyList())
+        val sorted = LunasRepository.sortServices(services, emptyList())
 
         assertEquals(services, sorted)
     }
@@ -129,15 +120,35 @@ class ServiceOrderingTest {
         val s1 = dummyService("s1", "SPayLater")
         val s2 = dummyService("s2", "GoPayLater")
 
-        val order = listOf("s2", "s1") // GoPayLater prioritized over SPayLater
-        val orderMap = order.withIndex().associate { it.value to it.index }
-
-        val list = listOf(s1, s2).sortedWith(
-            compareBy<PaylaterService> { orderMap[it.id] ?: Int.MAX_VALUE }
-                .thenBy { it.name }
+        val item1 = id.elclark.lunas.model.BillItem(
+            id = "item1",
+            serviceId = "s1",
+            title = "Item 1",
+            amountPerMonth = 50_000,
+            totalTenor = 1,
+            startYearMonth = "2026-10"
+        )
+        val item2 = id.elclark.lunas.model.BillItem(
+            id = "item2",
+            serviceId = "s2",
+            title = "Item 2",
+            amountPerMonth = 50_000,
+            totalTenor = 1,
+            startYearMonth = "2026-10"
         )
 
-        assertEquals("GoPayLater", list[0].name)
-        assertEquals("SPayLater", list[1].name)
+        val order = listOf("s2", "s1") // GoPayLater prioritized over SPayLater
+
+        val overview = LunasRepository.computeMonthlyOverview(
+            targetYm = "2026-10",
+            allServices = listOf(s1, s2),
+            allItems = listOf(item1, item2),
+            allPayments = emptyList(),
+            serviceOrder = order
+        )
+
+        assertEquals(2, overview.statements.size)
+        assertEquals("GoPayLater", overview.statements[0].service.name)
+        assertEquals("SPayLater", overview.statements[1].service.name)
     }
 }

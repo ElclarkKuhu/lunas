@@ -107,6 +107,109 @@ class LunasRepository(private val context: Context) {
                 serviceBreakdowns = breakdowns.sortedByDescending { it.remainingDebt }
             )
         }
+
+        fun sortServices(services: List<PaylaterService>, order: List<String>): List<PaylaterService> {
+            if (order.isEmpty()) return services
+            val orderMap = order.withIndex().associate { it.value to it.index }
+            return services.sortedWith(
+                compareBy<PaylaterService> { orderMap[it.id] ?: Int.MAX_VALUE }
+                    .thenBy { it.name }
+            )
+        }
+
+        fun computeMonthlyOverview(
+            targetYm: String,
+            allServices: List<PaylaterService>,
+            allItems: List<BillItem>,
+            allPayments: List<PaymentStatus>,
+            serviceOrder: List<String> = emptyList()
+        ): MonthlyOverview {
+            val statements = mutableListOf<MonthlyServiceStatement>()
+
+            var totalDue = 0L
+            var totalPaid = 0L
+            var paidCount = 0
+
+            for (svc in allServices) {
+                // Find items active in targetYm
+                val computedItems = mutableListOf<ComputedBillItem>()
+                var subtotal = 0L
+
+                for (item in allItems) {
+                    if (item.serviceId != svc.id) continue
+                    val diff = DateUtils.monthDifference(item.startYearMonth, targetYm)
+                    if (diff in 0 until item.totalTenor) {
+                        val computed = ComputedBillItem(
+                            item = item,
+                            currentTenorIndex = diff + 1,
+                            totalTenor = item.totalTenor,
+                            monthlyAmount = item.amountPerMonth,
+                            isInstallment = item.totalTenor > 1
+                        )
+                        computedItems.add(computed)
+                        subtotal += item.amountPerMonth
+                    }
+                }
+
+                // Only show services that have items, or show active ones anyway
+                val isPaid = allPayments.find { it.serviceId == svc.id && it.yearMonth == targetYm }?.isPaid ?: false
+                val dueDate = DateUtils.computeDueDate(targetYm, svc.dueDay, svc.dueMonthOffset)
+                val daysUntil = DateUtils.daysUntil(dueDate)
+
+                val statement = MonthlyServiceStatement(
+                    service = svc,
+                    yearMonth = targetYm,
+                    billingCycleText = DateUtils.computeBillingCycleText(
+                        targetYm,
+                        svc.billingCutoffDay,
+                        svc.dueDay,
+                        svc.dueMonthOffset
+                    ),
+                    items = computedItems,
+                    subtotal = subtotal,
+                    isPaid = isPaid,
+                    dueDateText = DateUtils.formatDueDate(dueDate),
+                    daysUntilDue = daysUntil,
+                    isDueSoon = daysUntil in 0..3 && !isPaid,
+                    isOverdue = daysUntil < 0 && !isPaid,
+                    dueDate = dueDate
+                )
+
+                // If it has items or is a known default service, include it
+                if (computedItems.isNotEmpty() || svc.isActive) {
+                    statements.add(statement)
+                    totalDue += subtotal
+                    if (isPaid && subtotal > 0) {
+                        totalPaid += subtotal
+                        paidCount++
+                    }
+                }
+            }
+
+            val servicesWithBillsCount = statements.count { it.subtotal > 0 }
+
+            val orderMap = serviceOrder.withIndex().associate { it.value to it.index }
+            val sortedStatements = statements.sortedWith(
+                compareBy<MonthlyServiceStatement> { statement ->
+                    when {
+                        statement.items.isNotEmpty() && !statement.isPaid -> 0
+                        statement.items.isNotEmpty() && statement.isPaid -> 1
+                        else -> 2
+                    }
+                }.thenBy { it.daysUntilDue }
+                .thenBy { orderMap[it.service.id] ?: Int.MAX_VALUE }
+                .thenBy { it.service.name }
+            )
+
+            return MonthlyOverview(
+                yearMonth = targetYm,
+                totalDue = totalDue,
+                totalPaid = totalPaid,
+                paidCount = paidCount,
+                totalCount = servicesWithBillsCount,
+                statements = sortedStatements
+            )
+        }
     }
 
     private val dbHelper = LunasDatabaseHelper.getInstance(context)
@@ -135,14 +238,8 @@ class LunasRepository(private val context: Context) {
         reloadAll()
     }
 
-    fun sortServices(services: List<PaylaterService>, order: List<String>): List<PaylaterService> {
-        if (order.isEmpty()) return services
-        val orderMap = order.withIndex().associate { it.value to it.index }
-        return services.sortedWith(
-            compareBy<PaylaterService> { orderMap[it.id] ?: Int.MAX_VALUE }
-                .thenBy { it.name }
-        )
-    }
+    fun sortServices(services: List<PaylaterService>, order: List<String>): List<PaylaterService> =
+        Companion.sortServices(services, order)
 
     suspend fun reloadAllNow() = withContext(Dispatchers.IO) {
         val s = dbHelper.getAllServices()
@@ -253,94 +350,10 @@ class LunasRepository(private val context: Context) {
         targetYm: String,
         allServices: List<PaylaterService>,
         allItems: List<BillItem>,
-        allPayments: List<PaymentStatus>
-    ): MonthlyOverview {
-        val statements = mutableListOf<MonthlyServiceStatement>()
-
-        var totalDue = 0L
-        var totalPaid = 0L
-        var paidCount = 0
-
-        for (svc in allServices) {
-            // Find items active in targetYm
-            val computedItems = mutableListOf<ComputedBillItem>()
-            var subtotal = 0L
-
-            for (item in allItems) {
-                if (item.serviceId != svc.id) continue
-                val diff = DateUtils.monthDifference(item.startYearMonth, targetYm)
-                if (diff in 0 until item.totalTenor) {
-                    val computed = ComputedBillItem(
-                        item = item,
-                        currentTenorIndex = diff + 1,
-                        totalTenor = item.totalTenor,
-                        monthlyAmount = item.amountPerMonth,
-                        isInstallment = item.totalTenor > 1
-                    )
-                    computedItems.add(computed)
-                    subtotal += item.amountPerMonth
-                }
-            }
-
-            // Only show services that have items, or show active ones anyway
-            val isPaid = allPayments.find { it.serviceId == svc.id && it.yearMonth == targetYm }?.isPaid ?: false
-            val dueDate = DateUtils.computeDueDate(targetYm, svc.dueDay, svc.dueMonthOffset)
-            val daysUntil = DateUtils.daysUntil(dueDate)
-
-            val statement = MonthlyServiceStatement(
-                service = svc,
-                yearMonth = targetYm,
-                billingCycleText = DateUtils.computeBillingCycleText(
-                    targetYm,
-                    svc.billingCutoffDay,
-                    svc.dueDay,
-                    svc.dueMonthOffset
-                ),
-                items = computedItems,
-                subtotal = subtotal,
-                isPaid = isPaid,
-                dueDateText = DateUtils.formatDueDate(dueDate),
-                daysUntilDue = daysUntil,
-                isDueSoon = daysUntil in 0..3 && !isPaid,
-                isOverdue = daysUntil < 0 && !isPaid,
-                dueDate = dueDate
-            )
-
-            // If it has items or is a known default service, include it
-            if (computedItems.isNotEmpty() || svc.isActive) {
-                statements.add(statement)
-                totalDue += subtotal
-                if (isPaid && subtotal > 0) {
-                    totalPaid += subtotal
-                    paidCount++
-                }
-            }
-        }
-
-        val servicesWithBillsCount = statements.count { it.subtotal > 0 }
-
-        val orderMap = _settings.value.serviceOrder.withIndex().associate { it.value to it.index }
-        val sortedStatements = statements.sortedWith(
-            compareBy<MonthlyServiceStatement> { statement ->
-                when {
-                    statement.items.isNotEmpty() && !statement.isPaid -> 0
-                    statement.items.isNotEmpty() && statement.isPaid -> 1
-                    else -> 2
-                }
-            }.thenBy { it.daysUntilDue }
-            .thenBy { orderMap[it.service.id] ?: Int.MAX_VALUE }
-            .thenBy { it.service.name }
-        )
-
-        return MonthlyOverview(
-            yearMonth = targetYm,
-            totalDue = totalDue,
-            totalPaid = totalPaid,
-            paidCount = paidCount,
-            totalCount = servicesWithBillsCount,
-            statements = sortedStatements
-        )
-    }
+        allPayments: List<PaymentStatus>,
+        serviceOrder: List<String> = _settings.value.serviceOrder
+    ): MonthlyOverview =
+        Companion.computeMonthlyOverview(targetYm, allServices, allItems, allPayments, serviceOrder)
 
     fun computeTotalOwed(
         currentYm: String = DateUtils.currentYearMonth(),
