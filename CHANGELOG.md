@@ -1,33 +1,21 @@
 # Changelog
 
-## 1.5.1
+## 1.5.0
 
 - **Native Drag-and-Drop Service Ordering**:
-  - Eliminated extra modal dialog and buttons for reordering services in the Add Bill sheet.
-  - Implemented intuitive, in-place long-press drag-and-drop directly on the service chips row with smooth animations, haptic feedback, and automatic list placement animation.
-  - Reordering automatically persists to repository settings and synchronizes home screen widgets immediately upon release.
-- **2x2 Compact Widget Visual Redesign**:
-  - Modernized layout proportions and vertical rhythm to look clean and balanced on Android home screens.
-  - Integrated header status pill badge alongside section label to save vertical space and give the total amount a bold, prominent presentation (18sp).
-  - Added dedicated overdue status pill badge (`Ada Telat` / `Overdue`) for instant visual awareness of overdue accounts.
-  - Refined quick-add button size (28dp) and padding for improved thumb touch responsiveness.
-  - Polished padding, typography, and icon alignment in the upcoming bill card.
-
-## 1.5
-
-- **Custom Service Ordering**:
-  - Added service reordering via an interactive dialog in both the Add Bill sheet and Manage Services screen.
-  - Prioritized service ordering is preserved in persistent app settings and reflected across bill statement overviews and service selectors.
-  - Includes a quick "Reset A-Z" option to restore standard alphabetical ordering.
+  - Implemented intuitive vertical drag-and-drop reordering directly on the Manage Services list with dedicated drag handles, long-press gesture support, smooth animations, and haptic feedback.
+  - Implemented seamless horizontal drag-and-drop reordering directly on service chips in the Add Bill sheet.
+  - Eliminated modal reorder dialogs and extra buttons in favor of direct, native list and chip manipulation.
+  - Custom service ordering is automatically persisted to repository settings and applied consistently across bill statement overviews, selectors, and home screen widgets.
 - **Compact 2x2 App Widget**:
-  - Introduced a compact 2x2 home screen widget (`LunasCompactWidgetProvider`) alongside the full overview widget.
-  - Displays monthly total owed, dynamic status badges (Paid / Overdue / Due count), and upcoming payment details with color-coded due alerts.
+  - Introduced a modern compact 2x2 home screen widget (`LunasCompactWidgetProvider`) alongside the full overview widget.
+  - Features dynamic status pill badges (Paid / Overdue / Due count), prominent monthly total amount presentation, and upcoming bill details with color-coded alerts.
   - Includes a quick-add bill shortcut button directly from the widget.
 - **Predictive Back Navigation & Polished Transitions**:
   - Added support for Android predictive back gesture navigation with realistic spring physics, scaling, and elevation.
   - Polished forward and backward screen transitions with fluid slide and fade animations.
-- **Service Ordering Unit Tests**:
-  - Added comprehensive unit test coverage (`ServiceOrderingTest`) validating custom ordering, alphabetical fallback for unranked items, and `AppSettings` JSON serialization.
+- **Comprehensive Unit Testing**:
+  - Added unit test suite (`ServiceOrderingTest`) validating custom ordering, alphabetical fallback for unranked items, and `AppSettings` JSON serialization.
 
 ## 1.4
 

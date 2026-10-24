@@ -7,9 +7,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,18 +28,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.elclark.lunas.R
 import id.elclark.lunas.data.LunasRepository
 import id.elclark.lunas.model.PaylaterService
 import id.elclark.lunas.theme.LunasTheme
-import id.elclark.lunas.ui.components.ReorderServicesDialog
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -67,11 +78,120 @@ fun ManageServicesScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val services by repository.services.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
+    val lazyListState = rememberLazyListState()
+
+    var localServices by remember(services) { mutableStateOf(services) }
+    var draggingServiceId by remember { mutableStateOf<String?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var autoScrollJob by remember { mutableStateOf<Job?>(null) }
+
+    LaunchedEffect(services) {
+        if (draggingServiceId == null) {
+            localServices = services
+        }
+    }
+
+    fun startDrag(serviceId: String) {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        draggingServiceId = serviceId
+        dragOffsetY = 0f
+    }
+
+    fun finishDrag() {
+        autoScrollJob?.cancel()
+        autoScrollJob = null
+        if (draggingServiceId != null) {
+            val newIds = localServices.map { it.id }
+            val oldIds = services.map { it.id }
+            if (newIds != oldIds) {
+                coroutineScope.launch {
+                    repository.updateServiceOrder(newIds)
+                }
+            }
+            draggingServiceId = null
+            dragOffsetY = 0f
+        }
+    }
+
+    fun handleDrag(serviceId: String, deltaY: Float) {
+        dragOffsetY += deltaY
+
+        val curIdx = localServices.indexOfFirst { it.id == serviceId }
+        if (curIdx != -1) {
+            val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+            val curInfo = visibleItems.firstOrNull { it.key == serviceId }
+            if (curInfo != null) {
+                val curCenter = curInfo.offset + curInfo.size / 2f + dragOffsetY
+
+                // Auto-scroll near top/bottom edges
+                val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
+                if (viewportHeight > 0) {
+                    val visualTop = curInfo.offset + dragOffsetY
+                    val visualBottom = visualTop + curInfo.size
+                    if (visualBottom > lazyListState.layoutInfo.viewportEndOffset - 40) {
+                        if (autoScrollJob?.isActive != true) {
+                            autoScrollJob = coroutineScope.launch {
+                                while (isActive) {
+                                    lazyListState.scrollBy(14f)
+                                    delay(16)
+                                }
+                            }
+                        }
+                    } else if (visualTop < lazyListState.layoutInfo.viewportStartOffset + 40) {
+                        if (autoScrollJob?.isActive != true) {
+                            autoScrollJob = coroutineScope.launch {
+                                while (isActive) {
+                                    lazyListState.scrollBy(-14f)
+                                    delay(16)
+                                }
+                            }
+                        }
+                    } else {
+                        autoScrollJob?.cancel()
+                        autoScrollJob = null
+                    }
+                }
+
+                // Reorder downwards
+                if (dragOffsetY > 0 && curIdx < localServices.size - 1) {
+                    val nextSvc = localServices[curIdx + 1]
+                    val nextInfo = visibleItems.firstOrNull { it.key == nextSvc.id }
+                    if (nextInfo != null) {
+                        val nextCenter = nextInfo.offset + nextInfo.size / 2f
+                        if (curCenter > nextCenter) {
+                            val updated = localServices.toMutableList()
+                            val moved = updated.removeAt(curIdx)
+                            updated.add(curIdx + 1, moved)
+                            localServices = updated
+                            val delta = nextInfo.offset - curInfo.offset
+                            dragOffsetY -= delta
+                        }
+                    }
+                }
+                // Reorder upwards
+                else if (dragOffsetY < 0 && curIdx > 0) {
+                    val prevSvc = localServices[curIdx - 1]
+                    val prevInfo = visibleItems.firstOrNull { it.key == prevSvc.id }
+                    if (prevInfo != null) {
+                        val prevCenter = prevInfo.offset + prevInfo.size / 2f
+                        if (curCenter < prevCenter) {
+                            val updated = localServices.toMutableList()
+                            val moved = updated.removeAt(curIdx)
+                            updated.add(curIdx - 1, moved)
+                            localServices = updated
+                            val delta = curInfo.offset - prevInfo.offset
+                            dragOffsetY += delta
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     var showServiceFormSheet by remember { mutableStateOf(false) }
     var editingService by remember { mutableStateOf<PaylaterService?>(null) }
     var serviceToArchive by remember { mutableStateOf<PaylaterService?>(null) }
-    var showReorderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -96,17 +216,6 @@ fun ManageServicesScreen(
                     }
                 },
                 actions = {
-                    if (services.size > 1) {
-                        IconButton(
-                            onClick = { showReorderDialog = true }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SwapVert,
-                                contentDescription = stringResource(R.string.reorder_services_title),
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    }
                     Button(
                         onClick = {
                             editingService = null
@@ -129,6 +238,7 @@ fun ManageServicesScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
@@ -137,19 +247,36 @@ fun ManageServicesScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                Text(
-                    text = stringResource(R.string.manage_services_list_count, services.size),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp,
-                        fontSize = 11.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.manage_services_list_count, localServices.size),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp,
+                            fontSize = 11.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (localServices.size > 1) {
+                        Text(
+                            text = stringResource(R.string.reorder_services_drag_hint),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                        )
+                    }
+                }
             }
 
-            if (services.isEmpty()) {
+            if (localServices.isEmpty()) {
                 item {
                     Surface(
                         shape = RoundedCornerShape(14.dp),
@@ -184,16 +311,69 @@ fun ManageServicesScreen(
                     }
                 }
             } else {
-                items(services, key = { it.id }) { svc ->
+                items(localServices, key = { it.id }) { svc ->
+                    val isDragging = draggingServiceId == svc.id
                     val svcColor = Color(svc.colorHex)
+
+                    val itemModifier = if (isDragging) {
+                        Modifier
+                    } else {
+                        Modifier.animateItem()
+                    }
+
+                    val cardModifier = if (localServices.size > 1) {
+                        Modifier.pointerInput(svc.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { startDrag(svc.id) },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    handleDrag(svc.id, dragAmount.y)
+                                },
+                                onDragEnd = { finishDrag() },
+                                onDragCancel = { finishDrag() }
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+
+                    val handleModifier = if (localServices.size > 1) {
+                        Modifier.pointerInput(svc.id) {
+                            detectDragGestures(
+                                onDragStart = { startDrag(svc.id) },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    handleDrag(svc.id, dragAmount.y)
+                                },
+                                onDragEnd = { finishDrag() },
+                                onDragCancel = { finishDrag() }
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                        border = BorderStroke(
+                            width = if (isDragging) 1.5.dp else 1.dp,
+                            color = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                        ),
+                        tonalElevation = if (isDragging) 8.dp else 0.dp,
+                        shadowElevation = if (isDragging) 8.dp else 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .then(itemModifier)
+                            .zIndex(if (isDragging) 10f else 1f)
+                            .graphicsLayer {
+                                translationY = if (isDragging) dragOffsetY else 0f
+                                scaleX = if (isDragging) 1.02f else 1.0f
+                                scaleY = if (isDragging) 1.02f else 1.0f
+                            }
+                            .then(cardModifier)
                             .clip(RoundedCornerShape(14.dp))
-                            .clickable {
+                            .clickable(enabled = draggingServiceId == null) {
                                 editingService = svc
                                 showServiceFormSheet = true
                             }
@@ -201,7 +381,7 @@ fun ManageServicesScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -209,7 +389,7 @@ fun ManageServicesScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .padding(end = 12.dp)
+                                    .padding(end = 8.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -285,6 +465,22 @@ fun ManageServicesScreen(
                                         modifier = Modifier.size(17.dp)
                                     )
                                 }
+
+                                if (localServices.size > 1) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .then(handleModifier),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DragHandle,
+                                            contentDescription = stringResource(R.string.reorder_services_title),
+                                            tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -348,18 +544,6 @@ fun ManageServicesScreen(
             dismissButton = {
                 TextButton(onClick = { serviceToArchive = null }) {
                     Text(stringResource(R.string.manage_services_cancel))
-                }
-            }
-        )
-    }
-
-    if (showReorderDialog) {
-        ReorderServicesDialog(
-            services = services,
-            onDismiss = { showReorderDialog = false },
-            onSaveOrder = { newOrder ->
-                coroutineScope.launch {
-                    repository.updateServiceOrder(newOrder)
                 }
             }
         )
