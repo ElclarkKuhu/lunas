@@ -1,21 +1,21 @@
 # Changelog
 
-## 1.5.0
+## 1.5.2
 
 - **Native Drag-and-Drop Service Ordering**:
   - Implemented intuitive vertical drag-and-drop reordering directly on the Manage Services list with dedicated drag handles, long-press gesture support, smooth animations, and haptic feedback.
   - Implemented seamless horizontal drag-and-drop reordering directly on service chips in the Add Bill sheet.
-  - Eliminated modal reorder dialogs and extra buttons in favor of direct, native list and chip manipulation.
+  - Resolved auto-scroll boundary drift, viewport clamping, and multi-item swap loop stability.
   - Custom service ordering is automatically persisted to repository settings and applied consistently across bill statement overviews, selectors, and home screen widgets.
 - **Compact 2x2 App Widget**:
   - Introduced a modern compact 2x2 home screen widget (`LunasCompactWidgetProvider`) alongside the full overview widget.
-  - Features dynamic status pill badges (Paid / Overdue / Due count), prominent monthly total amount presentation, and upcoming bill details with color-coded alerts.
+  - Features dynamic status pill badges (Paid / Overdue / Due count), auto-sizing monthly total amount presentation, and upcoming bill details with color-coded alerts.
   - Includes a quick-add bill shortcut button directly from the widget.
 - **Predictive Back Navigation & Polished Transitions**:
   - Added support for Android predictive back gesture navigation with realistic spring physics, scaling, and elevation.
   - Polished forward and backward screen transitions with fluid slide and fade animations.
 - **Comprehensive Unit Testing**:
-  - Added unit test suite (`ServiceOrderingTest`) validating custom ordering, alphabetical fallback for unranked items, and `AppSettings` JSON serialization.
+  - Added unit test suite (`ServiceOrderingTest`) validating custom ordering, alphabetical fallback for unranked items, `AppSettings` JSON serialization, and dynamic reordering mutations.
 
 ## 1.4
 
