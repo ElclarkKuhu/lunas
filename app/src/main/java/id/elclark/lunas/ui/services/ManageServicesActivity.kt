@@ -81,7 +81,7 @@ fun ManageServicesScreen(
     val haptic = LocalHapticFeedback.current
     val lazyListState = rememberLazyListState()
 
-    var localServices by remember(services) { mutableStateOf(services) }
+    var localServices by remember { mutableStateOf(services) }
     var draggingServiceId by remember { mutableStateOf<String?>(null) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var autoScrollJob by remember { mutableStateOf<Job?>(null) }
@@ -114,6 +114,54 @@ fun ManageServicesScreen(
         }
     }
 
+    fun checkReorder(serviceId: String) {
+        while (true) {
+            val curIdx = localServices.indexOfFirst { it.id == serviceId }
+            if (curIdx == -1) break
+            val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+            val curInfo = visibleItems.firstOrNull { it.key == serviceId } ?: break
+            val curCenter = curInfo.offset + curInfo.size / 2f + dragOffsetY
+            var swapped = false
+
+            // Reorder downwards
+            if (dragOffsetY > 0 && curIdx < localServices.size - 1) {
+                val nextSvc = localServices[curIdx + 1]
+                val nextInfo = visibleItems.firstOrNull { it.key == nextSvc.id }
+                if (nextInfo != null) {
+                    val nextCenter = nextInfo.offset + nextInfo.size / 2f
+                    if (curCenter > nextCenter) {
+                        val updated = localServices.toMutableList()
+                        val moved = updated.removeAt(curIdx)
+                        updated.add(curIdx + 1, moved)
+                        localServices = updated
+                        val delta = nextInfo.offset - curInfo.offset
+                        dragOffsetY -= delta
+                        swapped = true
+                    }
+                }
+            }
+            // Reorder upwards
+            else if (dragOffsetY < 0 && curIdx > 0) {
+                val prevSvc = localServices[curIdx - 1]
+                val prevInfo = visibleItems.firstOrNull { it.key == prevSvc.id }
+                if (prevInfo != null) {
+                    val prevCenter = prevInfo.offset + prevInfo.size / 2f
+                    if (curCenter < prevCenter) {
+                        val updated = localServices.toMutableList()
+                        val moved = updated.removeAt(curIdx)
+                        updated.add(curIdx - 1, moved)
+                        localServices = updated
+                        val delta = curInfo.offset - prevInfo.offset
+                        dragOffsetY += delta
+                        swapped = true
+                    }
+                }
+            }
+
+            if (!swapped) break
+        }
+    }
+
     fun handleDrag(serviceId: String, deltaY: Float) {
         dragOffsetY += deltaY
 
@@ -122,8 +170,6 @@ fun ManageServicesScreen(
             val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
             val curInfo = visibleItems.firstOrNull { it.key == serviceId }
             if (curInfo != null) {
-                val curCenter = curInfo.offset + curInfo.size / 2f + dragOffsetY
-
                 // Auto-scroll near top/bottom edges
                 val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
                 if (viewportHeight > 0) {
@@ -133,7 +179,13 @@ fun ManageServicesScreen(
                         if (autoScrollJob?.isActive != true) {
                             autoScrollJob = coroutineScope.launch {
                                 while (isActive) {
-                                    lazyListState.scrollBy(14f)
+                                    val consumed = lazyListState.scrollBy(14f)
+                                    if (consumed != 0f) {
+                                        dragOffsetY += consumed
+                                        checkReorder(serviceId)
+                                    } else {
+                                        break
+                                    }
                                     delay(16)
                                 }
                             }
@@ -142,7 +194,13 @@ fun ManageServicesScreen(
                         if (autoScrollJob?.isActive != true) {
                             autoScrollJob = coroutineScope.launch {
                                 while (isActive) {
-                                    lazyListState.scrollBy(-14f)
+                                    val consumed = lazyListState.scrollBy(-14f)
+                                    if (consumed != 0f) {
+                                        dragOffsetY += consumed
+                                        checkReorder(serviceId)
+                                    } else {
+                                        break
+                                    }
                                     delay(16)
                                 }
                             }
@@ -153,38 +211,7 @@ fun ManageServicesScreen(
                     }
                 }
 
-                // Reorder downwards
-                if (dragOffsetY > 0 && curIdx < localServices.size - 1) {
-                    val nextSvc = localServices[curIdx + 1]
-                    val nextInfo = visibleItems.firstOrNull { it.key == nextSvc.id }
-                    if (nextInfo != null) {
-                        val nextCenter = nextInfo.offset + nextInfo.size / 2f
-                        if (curCenter > nextCenter) {
-                            val updated = localServices.toMutableList()
-                            val moved = updated.removeAt(curIdx)
-                            updated.add(curIdx + 1, moved)
-                            localServices = updated
-                            val delta = nextInfo.offset - curInfo.offset
-                            dragOffsetY -= delta
-                        }
-                    }
-                }
-                // Reorder upwards
-                else if (dragOffsetY < 0 && curIdx > 0) {
-                    val prevSvc = localServices[curIdx - 1]
-                    val prevInfo = visibleItems.firstOrNull { it.key == prevSvc.id }
-                    if (prevInfo != null) {
-                        val prevCenter = prevInfo.offset + prevInfo.size / 2f
-                        if (curCenter < prevCenter) {
-                            val updated = localServices.toMutableList()
-                            val moved = updated.removeAt(curIdx)
-                            updated.add(curIdx - 1, moved)
-                            localServices = updated
-                            val delta = curInfo.offset - prevInfo.offset
-                            dragOffsetY += delta
-                        }
-                    }
-                }
+                checkReorder(serviceId)
             }
         }
     }

@@ -218,6 +218,54 @@ fun AddBillBottomSheet(
 
                     val reorderModifier = if (onReorderServices != null && localServices.size > 1) {
                         Modifier.pointerInput(svc.id) {
+                            fun checkReorder(serviceId: String) {
+                                while (true) {
+                                    val curIdx = localServices.indexOfFirst { it.id == serviceId }
+                                    if (curIdx == -1) break
+                                    val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+                                    val curInfo = visibleItems.firstOrNull { it.key == serviceId } ?: break
+                                    val curCenter = curInfo.offset + curInfo.size / 2f + dragOffsetX
+                                    var swapped = false
+
+                                    // Reorder right
+                                    if (dragOffsetX > 0 && curIdx < localServices.size - 1) {
+                                        val nextSvc = localServices[curIdx + 1]
+                                        val nextInfo = visibleItems.firstOrNull { it.key == nextSvc.id }
+                                        if (nextInfo != null) {
+                                            val nextCenter = nextInfo.offset + nextInfo.size / 2f
+                                            if (curCenter > nextCenter) {
+                                                val updated = localServices.toMutableList()
+                                                val moved = updated.removeAt(curIdx)
+                                                updated.add(curIdx + 1, moved)
+                                                localServices = updated
+                                                val delta = nextInfo.offset - curInfo.offset
+                                                dragOffsetX -= delta
+                                                swapped = true
+                                            }
+                                        }
+                                    }
+                                    // Reorder left
+                                    else if (dragOffsetX < 0 && curIdx > 0) {
+                                        val prevSvc = localServices[curIdx - 1]
+                                        val prevInfo = visibleItems.firstOrNull { it.key == prevSvc.id }
+                                        if (prevInfo != null) {
+                                            val prevCenter = prevInfo.offset + prevInfo.size / 2f
+                                            if (curCenter < prevCenter) {
+                                                val updated = localServices.toMutableList()
+                                                val moved = updated.removeAt(curIdx)
+                                                updated.add(curIdx - 1, moved)
+                                                localServices = updated
+                                                val delta = curInfo.offset - prevInfo.offset
+                                                dragOffsetX += delta
+                                                swapped = true
+                                            }
+                                        }
+                                    }
+
+                                    if (!swapped) break
+                                }
+                            }
+
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -233,8 +281,6 @@ fun AddBillBottomSheet(
                                         val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
                                         val curInfo = visibleItems.firstOrNull { it.key == svc.id }
                                         if (curInfo != null) {
-                                            val curCenter = curInfo.offset + curInfo.size / 2f + dragOffsetX
-
                                             // Auto-scroll near edges
                                             val viewportWidth = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
                                             if (viewportWidth > 0) {
@@ -244,7 +290,13 @@ fun AddBillBottomSheet(
                                                     if (autoScrollJob?.isActive != true) {
                                                         autoScrollJob = coroutineScope.launch {
                                                             while (isActive) {
-                                                                lazyListState.scrollBy(14f)
+                                                                val consumed = lazyListState.scrollBy(14f)
+                                                                if (consumed != 0f) {
+                                                                    dragOffsetX += consumed
+                                                                    checkReorder(svc.id)
+                                                                } else {
+                                                                    break
+                                                                }
                                                                 delay(16)
                                                             }
                                                         }
@@ -253,7 +305,13 @@ fun AddBillBottomSheet(
                                                     if (autoScrollJob?.isActive != true) {
                                                         autoScrollJob = coroutineScope.launch {
                                                             while (isActive) {
-                                                                lazyListState.scrollBy(-14f)
+                                                                val consumed = lazyListState.scrollBy(-14f)
+                                                                if (consumed != 0f) {
+                                                                    dragOffsetX += consumed
+                                                                    checkReorder(svc.id)
+                                                                } else {
+                                                                    break
+                                                                }
                                                                 delay(16)
                                                             }
                                                         }
@@ -264,38 +322,7 @@ fun AddBillBottomSheet(
                                                 }
                                             }
 
-                                            // Reorder right
-                                            if (dragOffsetX > 0 && curIdx < localServices.size - 1) {
-                                                val nextSvc = localServices[curIdx + 1]
-                                                val nextInfo = visibleItems.firstOrNull { it.key == nextSvc.id }
-                                                if (nextInfo != null) {
-                                                    val nextCenter = nextInfo.offset + nextInfo.size / 2f
-                                                    if (curCenter > nextCenter) {
-                                                        val updated = localServices.toMutableList()
-                                                        val moved = updated.removeAt(curIdx)
-                                                        updated.add(curIdx + 1, moved)
-                                                        localServices = updated
-                                                        val delta = nextInfo.offset - curInfo.offset
-                                                        dragOffsetX -= delta
-                                                    }
-                                                }
-                                            }
-                                            // Reorder left
-                                            else if (dragOffsetX < 0 && curIdx > 0) {
-                                                val prevSvc = localServices[curIdx - 1]
-                                                val prevInfo = visibleItems.firstOrNull { it.key == prevSvc.id }
-                                                if (prevInfo != null) {
-                                                    val prevCenter = prevInfo.offset + prevInfo.size / 2f
-                                                    if (curCenter < prevCenter) {
-                                                        val updated = localServices.toMutableList()
-                                                        val moved = updated.removeAt(curIdx)
-                                                        updated.add(curIdx - 1, moved)
-                                                        localServices = updated
-                                                        val delta = curInfo.offset - prevInfo.offset
-                                                        dragOffsetX += delta
-                                                    }
-                                                }
-                                            }
+                                            checkReorder(svc.id)
                                         }
                                     }
                                 },

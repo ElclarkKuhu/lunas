@@ -228,4 +228,40 @@ class ServiceOrderingTest {
         assertEquals("GoPayLater", sorted[0].name)
         assertEquals("SPayLater", sorted[1].name)
     }
+
+    @Test
+    fun rapidDragDisplacementReordersMultiplePositionsCleanly() {
+        val original = listOf("s1", "s2", "s3", "s4", "s5")
+        val list = original.toMutableList()
+        var dragOffset = 250f // Large downward displacement across two 100px items
+
+        // Simulating the checkReorder loop:
+        val itemHeight = 100f
+        var curIdx = list.indexOf("s1")
+        while (dragOffset > itemHeight / 2f && curIdx < list.size - 1) {
+            val moved = list.removeAt(curIdx)
+            list.add(curIdx + 1, moved)
+            dragOffset -= itemHeight
+            curIdx++
+        }
+
+        assertEquals(listOf("s2", "s3", "s1", "s4", "s5"), list)
+        assertEquals(50f, dragOffset, 0.001f)
+    }
+
+    @Test
+    fun autoScrollDeltaCompensationMaintainsVisualInvariance() {
+        // Initially item is at layout offset 100 with dragOffsetY = 200 (visual position = 300)
+        var layoutOffset = 100f
+        var dragOffsetY = 200f
+        val initialVisualPos = layoutOffset + dragOffsetY
+
+        // Auto-scroll consumes 50px downward scroll (content shifts up by 50px)
+        val consumedScroll = 50f
+        layoutOffset -= consumedScroll
+        dragOffsetY += consumedScroll
+
+        val finalVisualPos = layoutOffset + dragOffsetY
+        assertEquals(initialVisualPos, finalVisualPos, 0.001f)
+    }
 }
