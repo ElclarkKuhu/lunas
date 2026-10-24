@@ -1,7 +1,10 @@
 # Changelog
 
-## 1.5.2
+## 1.5.4
 
+- **Manage Services Floating Action Button**:
+  - Replaced the TopAppBar "Tambah" action button with a primary Floating Action Button (FAB) on the Manage Services screen, matching the design and elevation of the main screen.
+  - Extended bottom scrolling clearance so service items are fully visible above the FAB.
 - **Native Drag-and-Drop Service Ordering**:
   - Implemented intuitive vertical drag-and-drop reordering directly on the Manage Services list with dedicated drag handles, long-press gesture support, smooth animations, and haptic feedback.
   - Implemented seamless horizontal drag-and-drop reordering directly on service chips in the Add Bill sheet.
