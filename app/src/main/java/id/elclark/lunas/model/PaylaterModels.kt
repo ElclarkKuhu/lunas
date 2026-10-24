@@ -45,7 +45,8 @@ data class AppSettings(
     val notifyDueSoon: Boolean = true,    // Notifikasi H-x sebelum jatuh tempo
     val notifyOnDueDate: Boolean = true,  // Notifikasi tepat pada hari H jatuh tempo
     val notifyOnOverdue: Boolean = true,  // Notifikasi H+1 lewat jatuh tempo
-    val currencyCode: String = "IDR"
+    val currencyCode: String = "IDR",
+    val serviceOrder: List<String> = emptyList()
 )
 
 data class ComputedBillItem(

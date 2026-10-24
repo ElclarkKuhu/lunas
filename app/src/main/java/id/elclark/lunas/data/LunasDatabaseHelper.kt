@@ -283,6 +283,7 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         var notifyDueDate = true
         var notifyOverdue = true
         var currencyCode = "IDR"
+        var serviceOrder = emptyList<String>()
 
         val cursor = db.query(TABLE_SETTINGS, null, null, null, null, null, null)
         cursor.use { c ->
@@ -300,6 +301,11 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
                     "notify_due_date" -> notifyDueDate = value.toBoolean()
                     "notify_overdue" -> notifyOverdue = value.toBoolean()
                     "currency_code" -> currencyCode = value
+                    "service_order" -> {
+                        if (value.isNotBlank()) {
+                            serviceOrder = value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                        }
+                    }
                 }
             }
         }
@@ -313,7 +319,8 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
             notifyDueSoon = notifyDueSoon,
             notifyOnDueDate = notifyDueDate,
             notifyOnOverdue = notifyOverdue,
-            currencyCode = currencyCode
+            currencyCode = currencyCode,
+            serviceOrder = serviceOrder
         )
     }
 
@@ -331,6 +338,7 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
             saveSettingKeyVal(db, "notify_due_date", settings.notifyOnDueDate.toString())
             saveSettingKeyVal(db, "notify_overdue", settings.notifyOnOverdue.toString())
             saveSettingKeyVal(db, "currency_code", settings.currencyCode)
+            saveSettingKeyVal(db, "service_order", settings.serviceOrder.joinToString(","))
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()

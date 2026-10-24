@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5
+
+- **Custom Service Ordering**:
+  - Added service reordering via an interactive dialog in both the Add Bill sheet and Manage Services screen.
+  - Prioritized service ordering is preserved in persistent app settings and reflected across bill statement overviews and service selectors.
+  - Includes a quick "Reset A-Z" option to restore standard alphabetical ordering.
+- **Compact 2x2 App Widget**:
+  - Introduced a compact 2x2 home screen widget (`LunasCompactWidgetProvider`) alongside the full overview widget.
+  - Displays monthly total owed, dynamic status badges (Paid / Overdue / Due count), and upcoming payment details with color-coded due alerts.
+  - Includes a quick-add bill shortcut button directly from the widget.
+- **Predictive Back Navigation & Polished Transitions**:
+  - Added support for Android predictive back gesture navigation with realistic spring physics, scaling, and elevation.
+  - Polished forward and backward screen transitions with fluid slide and fade animations.
+- **Service Ordering Unit Tests**:
+  - Added comprehensive unit test coverage (`ServiceOrderingTest`) validating custom ordering, alphabetical fallback for unranked items, and `AppSettings` JSON serialization.
+
 ## 1.4
 
 - **Robust Math Parser & Expression Evaluation**:

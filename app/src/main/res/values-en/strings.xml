@@ -150,4 +150,19 @@
     <string name="widget_due_tomorrow">Due TOMORROW (%1$s)</string>
     <string name="widget_due_days">Due %1$s (%2$d days left)</string>
     <string name="widget_due_overdue">Overdue by %1$d days (%2$s)</string>
+    <string name="widget_compact_name">Lunas Compact (2x2)</string>
+    <string name="widget_compact_description">Monthly bill summary &amp; next upcoming payment in a compact 2x2 widget</string>
+    <string name="widget_compact_all_settled">All bills paid</string>
+    <string name="widget_compact_no_bills">No active bills</string>
+    <string name="widget_compact_add_bill_hint">Tap + to add a bill</string>
+    <string name="widget_compact_all_settled_hint">All settled this month!</string>
+    <string name="reorder_services_title">Reorder Services</string>
+    <string name="reorder_services_subtitle">Use arrows to prioritize paylater services</string>
+    <string name="reorder_services_action">Reorder</string>
+    <string name="reorder_services_chip">Reorder</string>
+    <string name="reorder_services_move_up">Move up</string>
+    <string name="reorder_services_move_down">Move down</string>
+    <string name="reorder_services_reset_az">Reset A-Z</string>
+    <string name="reorder_services_save">Save</string>
+    <string name="reorder_services_cancel">Cancel</string>
 </resources>

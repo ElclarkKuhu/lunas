@@ -135,12 +135,21 @@ class LunasRepository(private val context: Context) {
         reloadAll()
     }
 
+    fun sortServices(services: List<PaylaterService>, order: List<String>): List<PaylaterService> {
+        if (order.isEmpty()) return services
+        val orderMap = order.withIndex().associate { it.value to it.index }
+        return services.sortedWith(
+            compareBy<PaylaterService> { orderMap[it.id] ?: Int.MAX_VALUE }
+                .thenBy { it.name }
+        )
+    }
+
     suspend fun reloadAllNow() = withContext(Dispatchers.IO) {
         val s = dbHelper.getAllServices()
         val i = dbHelper.getAllItems()
         val p = dbHelper.getAllPaymentStatuses()
         val cfg = dbHelper.getSettings()
-        _services.value = s
+        _services.value = sortServices(s, cfg.serviceOrder)
         _items.value = i
         _payments.value = p
         _settings.value = cfg
@@ -227,6 +236,16 @@ class LunasRepository(private val context: Context) {
     suspend fun updateSettings(settings: AppSettings) = withContext(Dispatchers.IO) {
         dbHelper.saveSettings(settings)
         _settings.value = settings
+        _services.value = sortServices(dbHelper.getAllServices(), settings.serviceOrder)
+        LunasWidgetProvider.updateAllWidgets(context)
+    }
+
+    suspend fun updateServiceOrder(orderedIds: List<String>) = withContext(Dispatchers.IO) {
+        val fullOrder = orderedIds + _settings.value.serviceOrder.filter { it !in orderedIds }
+        val updated = _settings.value.copy(serviceOrder = fullOrder)
+        dbHelper.saveSettings(updated)
+        _settings.value = updated
+        _services.value = sortServices(dbHelper.getAllServices(), fullOrder)
         LunasWidgetProvider.updateAllWidgets(context)
     }
 
@@ -300,6 +319,7 @@ class LunasRepository(private val context: Context) {
 
         val servicesWithBillsCount = statements.count { it.subtotal > 0 }
 
+        val orderMap = _settings.value.serviceOrder.withIndex().associate { it.value to it.index }
         val sortedStatements = statements.sortedWith(
             compareBy<MonthlyServiceStatement> { statement ->
                 when {
@@ -308,6 +328,7 @@ class LunasRepository(private val context: Context) {
                     else -> 2
                 }
             }.thenBy { it.daysUntilDue }
+            .thenBy { orderMap[it.service.id] ?: Int.MAX_VALUE }
             .thenBy { it.service.name }
         )
 

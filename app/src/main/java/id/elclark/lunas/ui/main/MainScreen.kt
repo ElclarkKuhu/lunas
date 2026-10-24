@@ -426,6 +426,9 @@ fun MainScreen(
                                 showAddSheet = false
                                 editingBillItem = null
                                 showJsonImportDialog = true
+                            },
+                            onReorderServices = { newOrder ->
+                                viewModel.updateServiceOrder(newOrder)
                             }
                         )
                     }

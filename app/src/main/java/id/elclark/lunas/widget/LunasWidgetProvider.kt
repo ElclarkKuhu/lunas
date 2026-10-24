@@ -38,6 +38,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
             } else {
                 pendingResult?.finish()
             }
+            LunasCompactWidgetProvider.updateAllWidgets(context)
         }
     }
 
@@ -53,6 +54,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
             if (appWidgetIds != null && appWidgetIds.isNotEmpty()) {
                 updateWidgets(context, appWidgetManager, appWidgetIds)
             }
+            LunasCompactWidgetProvider.updateAllWidgets(context)
         }
 
         private fun updateWidgets(

@@ -212,6 +212,12 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun updateServiceOrder(orderedIds: List<String>) {
+        viewModelScope.launch {
+            repository.updateServiceOrder(orderedIds)
+        }
+    }
+
     suspend fun exportBackup(): String {
         return repository.exportBackupJson()
     }

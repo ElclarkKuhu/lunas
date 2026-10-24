@@ -35,6 +35,7 @@ import id.elclark.lunas.R
 import id.elclark.lunas.data.LunasRepository
 import id.elclark.lunas.model.PaylaterService
 import id.elclark.lunas.theme.LunasTheme
+import id.elclark.lunas.ui.components.ReorderServicesDialog
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -70,6 +71,7 @@ fun ManageServicesScreen(
     var showServiceFormSheet by remember { mutableStateOf(false) }
     var editingService by remember { mutableStateOf<PaylaterService?>(null) }
     var serviceToArchive by remember { mutableStateOf<PaylaterService?>(null) }
+    var showReorderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -94,6 +96,17 @@ fun ManageServicesScreen(
                     }
                 },
                 actions = {
+                    if (services.size > 1) {
+                        IconButton(
+                            onClick = { showReorderDialog = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SwapVert,
+                                contentDescription = stringResource(R.string.reorder_services_title),
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
                     Button(
                         onClick = {
                             editingService = null
@@ -335,6 +348,18 @@ fun ManageServicesScreen(
             dismissButton = {
                 TextButton(onClick = { serviceToArchive = null }) {
                     Text(stringResource(R.string.manage_services_cancel))
+                }
+            }
+        )
+    }
+
+    if (showReorderDialog) {
+        ReorderServicesDialog(
+            services = services,
+            onDismiss = { showReorderDialog = false },
+            onSaveOrder = { newOrder ->
+                coroutineScope.launch {
+                    repository.updateServiceOrder(newOrder)
                 }
             }
         )

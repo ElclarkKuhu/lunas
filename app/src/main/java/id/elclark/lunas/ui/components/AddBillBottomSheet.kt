@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ViewTimeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,11 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import id.elclark.lunas.R
 import id.elclark.lunas.model.BillItem
 import id.elclark.lunas.model.PaylaterService
 import id.elclark.lunas.util.DateUtils
@@ -48,11 +51,18 @@ fun AddBillBottomSheet(
     onUpdateScratchpad: ((id: String, serviceId: String, title: String, rawExpression: String, sum: Long, targetMonth: String) -> Unit)? = null,
     onDeleteItem: ((id: String) -> Unit)? = null,
     onOpenManageServices: () -> Unit,
-    onOpenJsonImport: () -> Unit = {}
+    onOpenJsonImport: () -> Unit = {},
+    onReorderServices: ((List<String>) -> Unit)? = null
 ) {
     val isEditing = editingItem != null
-    var selectedServiceId by remember(editingItem?.id, services) {
+    var selectedServiceId by remember(editingItem?.id) {
         mutableStateOf(editingItem?.serviceId ?: services.firstOrNull()?.id ?: "")
+    }
+
+    LaunchedEffect(services) {
+        if (selectedServiceId.isEmpty() || services.none { it.id == selectedServiceId }) {
+            selectedServiceId = services.firstOrNull()?.id ?: ""
+        }
     }
     var selectedTab by remember(editingItem?.id) {
         mutableIntStateOf(if (editingItem?.rawMathExpression != null) 1 else 0)
@@ -81,6 +91,7 @@ fun AddBillBottomSheet(
     }
     val mathResult = remember(scratchpadExpression) { MathParser.parse(scratchpadExpression) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showReorderDialog by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -116,14 +127,40 @@ fun AddBillBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Service selector
-            Text(
-                text = "PILIH LAYANAN",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "PILIH LAYANAN",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (onReorderServices != null && services.size > 1) {
+                    TextButton(
+                        onClick = { showReorderDialog = true },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapVert,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = stringResource(R.string.reorder_services_action),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -160,6 +197,34 @@ fun AddBillBottomSheet(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 ),
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                if (onReorderServices != null && services.size > 1) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { showReorderDialog = true }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SwapVert,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.reorder_services_chip),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -650,6 +715,16 @@ fun AddBillBottomSheet(
                     TextButton(onClick = { showDeleteConfirmDialog = false }) {
                         Text("Batal")
                     }
+                }
+            )
+        }
+
+        if (showReorderDialog && onReorderServices != null) {
+            ReorderServicesDialog(
+                services = services,
+                onDismiss = { showReorderDialog = false },
+                onSaveOrder = { newOrder ->
+                    onReorderServices(newOrder)
                 }
             )
         }

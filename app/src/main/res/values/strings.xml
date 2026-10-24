@@ -150,4 +150,19 @@
     <string name="widget_due_tomorrow">Jatuh tempo BESOK (%1$s)</string>
     <string name="widget_due_days">Jatuh tempo %1$s (%2$d hr lagi)</string>
     <string name="widget_due_overdue">Telat %1$d hari (%2$s)</string>
+    <string name="widget_compact_name">Lunas Ringkas (2x2)</string>
+    <string name="widget_compact_description">Ringkasan tagihan bulanan &amp; pembayaran berikutnya dalam widget 2x2 kompak</string>
+    <string name="widget_compact_all_settled">Semua tagihan lunas</string>
+    <string name="widget_compact_no_bills">Belum ada tagihan</string>
+    <string name="widget_compact_add_bill_hint">Ketuk + untuk catat</string>
+    <string name="widget_compact_all_settled_hint">Bulan ini beres!</string>
+    <string name="reorder_services_title">Atur Urutan Layanan</string>
+    <string name="reorder_services_subtitle">Gunakan panah untuk memprioritaskan layanan</string>
+    <string name="reorder_services_action">Atur Urutan</string>
+    <string name="reorder_services_chip">Urutkan</string>
+    <string name="reorder_services_move_up">Naikkan</string>
+    <string name="reorder_services_move_down">Turunkan</string>
+    <string name="reorder_services_reset_az">Reset A-Z</string>
+    <string name="reorder_services_save">Simpan</string>
+    <string name="reorder_services_cancel">Batal</string>
 </resources>
