@@ -165,4 +165,6 @@
     <string name="reorder_services_reset_az">Reset A-Z</string>
     <string name="reorder_services_save">Simpan</string>
     <string name="reorder_services_cancel">Batal</string>
+    <string name="widget_badge_overdue">Ada Telat</string>
+    <string name="reorder_services_drag_hint">Tahan &amp; geser untuk atur</string>
 </resources>

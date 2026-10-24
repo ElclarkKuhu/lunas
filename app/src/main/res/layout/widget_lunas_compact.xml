@@ -31,108 +31,135 @@
             android:maxLines="1"
             android:text="Oktober 2026"
             android:textColor="@color/dark_text_secondary"
-            android:textSize="11sp"
+            android:textSize="11.5sp"
             android:textStyle="bold" />
 
         <ImageButton
             android:id="@+id/widget_compact_btn_add"
-            android:layout_width="26dp"
-            android:layout_height="26dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:background="@drawable/widget_btn_bg"
             android:contentDescription="@string/widget_add_content_description"
-            android:padding="4dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_widget_add" />
     </LinearLayout>
 
-    <!-- Main Summary: Label, Total Amount, and Status Badge -->
+    <!-- Main Summary: Label + Status Pill (Row 1), Total Amount (Row 2) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/widget_compact_label_total"
-            android:layout_width="wrap_content"
+        <!-- Row 1: Label on Left, Status Pill on Right -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:letterSpacing="0.04"
-            android:maxLines="1"
-            android:text="@string/widget_total_month"
-            android:textColor="@color/dark_text_muted"
-            android:textSize="9.5sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
+            <TextView
+                android:id="@+id/widget_compact_label_total"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:letterSpacing="0.05"
+                android:maxLines="1"
+                android:text="@string/widget_total_month"
+                android:textColor="@color/dark_text_muted"
+                android:textSize="9.5sp"
+                android:textStyle="bold" />
+
+            <!-- Status Badges: Paid / Due / Overdue / Neutral -->
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp">
+
+                <TextView
+                    android:id="@+id/widget_compact_status_badge_paid"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/widget_badge_paid"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:paddingStart="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="7dp"
+                    android:paddingBottom="2dp"
+                    android:text="@string/widget_paid_status"
+                    android:textColor="@color/on_primary_green_container"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/widget_compact_status_badge_overdue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/widget_badge_overdue"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:paddingStart="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="7dp"
+                    android:paddingBottom="2dp"
+                    android:text="@string/widget_badge_overdue"
+                    android:textColor="@color/status_overdue"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/widget_compact_status_badge_due"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/widget_badge_due_soon"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:paddingStart="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="7dp"
+                    android:paddingBottom="2dp"
+                    android:text="0/0 Lunas"
+                    android:textColor="@color/status_due_soon"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/widget_compact_status_badge_neutral"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/widget_badge_neutral"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:paddingStart="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="7dp"
+                    android:paddingBottom="2dp"
+                    android:text="@string/widget_neutral_status"
+                    android:textColor="@color/dark_text_secondary"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:visibility="visible" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- Row 2: Total Amount -->
         <TextView
             android:id="@+id/widget_compact_total_amount"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:text="Rp 0"
             android:textColor="@color/dark_text_primary"
-            android:textSize="17sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
-
-        <!-- Status Badges: Paid / Due / Neutral -->
-        <FrameLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp">
-
-            <TextView
-                android:id="@+id/widget_compact_status_badge_paid"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/widget_badge_paid"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:paddingStart="6dp"
-                android:paddingTop="2dp"
-                android:paddingEnd="6dp"
-                android:paddingBottom="2dp"
-                android:text="@string/widget_paid_status"
-                android:textColor="@color/on_primary_green_container"
-                android:textSize="9.5sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/widget_compact_status_badge_due"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/widget_badge_due_soon"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:paddingStart="6dp"
-                android:paddingTop="2dp"
-                android:paddingEnd="6dp"
-                android:paddingBottom="2dp"
-                android:text="0/0 Lunas"
-                android:textColor="@color/status_due_soon"
-                android:textSize="9.5sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/widget_compact_status_badge_neutral"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/widget_badge_neutral"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:paddingStart="6dp"
-                android:paddingTop="2dp"
-                android:paddingEnd="6dp"
-                android:paddingBottom="2dp"
-                android:text="@string/widget_neutral_status"
-                android:textColor="@color/dark_text_secondary"
-                android:textSize="9.5sp"
-                android:textStyle="bold"
-                android:visibility="visible" />
-        </FrameLayout>
     </LinearLayout>
 
     <!-- Flexible spacer to push next payment card to bottom -->
@@ -146,10 +173,13 @@
         android:id="@+id/widget_compact_upcoming_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/widget_inner_card"
         android:orientation="vertical"
-        android:padding="8dp">
+        android:paddingStart="9dp"
+        android:paddingTop="7dp"
+        android:paddingEnd="9dp"
+        android:paddingBottom="7dp">
 
         <!-- Line 1: Icon + Service Name + Amount -->
         <LinearLayout
@@ -162,7 +192,7 @@
                 android:id="@+id/widget_compact_upcoming_icon"
                 android:layout_width="12dp"
                 android:layout_height="12dp"
-                android:layout_marginEnd="5dp"
+                android:layout_marginEnd="6dp"
                 android:contentDescription="@string/widget_due_title"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_widget_calendar" />
@@ -183,7 +213,7 @@
                 android:id="@+id/widget_compact_upcoming_amount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
+                android:layout_marginStart="6dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Rp 0"

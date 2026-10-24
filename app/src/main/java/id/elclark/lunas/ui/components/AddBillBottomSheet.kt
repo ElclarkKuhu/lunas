@@ -3,10 +3,16 @@ package id.elclark.lunas.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,12 +31,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import id.elclark.lunas.R
 import id.elclark.lunas.model.BillItem
 import id.elclark.lunas.model.PaylaterService
@@ -91,7 +102,27 @@ fun AddBillBottomSheet(
     }
     val mathResult = remember(scratchpadExpression) { MathParser.parse(scratchpadExpression) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    var showReorderDialog by remember { mutableStateOf(false) }
+
+    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+    val lazyListState = rememberLazyListState()
+
+    var localServices by remember(services) { mutableStateOf(services) }
+    var draggingServiceId by remember { mutableStateOf<String?>(null) }
+    var dragOffsetX by remember { mutableFloatStateOf(0f) }
+
+    fun finishDrag() {
+        val currentDraggingId = draggingServiceId
+        if (currentDraggingId != null) {
+            val originalIds = services.map { it.id }
+            val newIds = localServices.map { it.id }
+            if (originalIds != newIds) {
+                onReorderServices?.invoke(newIds)
+            }
+            draggingServiceId = null
+            dragOffsetX = 0f
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -142,41 +173,126 @@ fun AddBillBottomSheet(
                 )
 
                 if (onReorderServices != null && services.size > 1) {
-                    TextButton(
-                        onClick = { showReorderDialog = true },
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapVert,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = stringResource(R.string.reorder_services_action),
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.reorder_services_drag_hint),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Normal
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            LazyRow(
+                state = lazyListState,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
             ) {
-                services.forEach { svc ->
+                items(
+                    items = localServices,
+                    key = { it.id }
+                ) { svc ->
                     val isSelected = svc.id == selectedServiceId
+                    val isDragging = draggingServiceId == svc.id
                     val svcColor = Color(svc.colorHex)
+
+                    val itemModifier = if (isDragging) {
+                        Modifier
+                    } else {
+                        Modifier.animateItem()
+                    }
+
+                    val reorderModifier = if (onReorderServices != null && localServices.size > 1) {
+                        Modifier.pointerInput(svc.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    draggingServiceId = svc.id
+                                    dragOffsetX = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffsetX += dragAmount.x
+
+                                    val curIdx = localServices.indexOfFirst { it.id == svc.id }
+                                    if (curIdx != -1) {
+                                        val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+                                        val curInfo = visibleItems.firstOrNull { it.key == svc.id }
+                                        if (curInfo != null) {
+                                            val curCenter = curInfo.offset + curInfo.size / 2f + dragOffsetX
+
+                                            // Auto-scroll near edges
+                                            val viewportWidth = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
+                                            if (viewportWidth > 0) {
+                                                val visualLeft = curInfo.offset + dragOffsetX
+                                                val visualRight = visualLeft + curInfo.size
+                                                if (visualRight > viewportWidth - 20) {
+                                                    coroutineScope.launch { lazyListState.scrollBy(15f) }
+                                                } else if (visualLeft < 20) {
+                                                    coroutineScope.launch { lazyListState.scrollBy(-15f) }
+                                                }
+                                            }
+
+                                            // Reorder right
+                                            if (dragOffsetX > 0 && curIdx < localServices.size - 1) {
+                                                val nextSvc = localServices[curIdx + 1]
+                                                val nextInfo = visibleItems.firstOrNull { it.key == nextSvc.id }
+                                                if (nextInfo != null) {
+                                                    val nextCenter = nextInfo.offset + nextInfo.size / 2f
+                                                    if (curCenter > nextCenter) {
+                                                        val updated = localServices.toMutableList()
+                                                        val moved = updated.removeAt(curIdx)
+                                                        updated.add(curIdx + 1, moved)
+                                                        localServices = updated
+                                                        val delta = nextInfo.offset - curInfo.offset
+                                                        dragOffsetX -= delta
+                                                    }
+                                                }
+                                            }
+                                            // Reorder left
+                                            else if (dragOffsetX < 0 && curIdx > 0) {
+                                                val prevSvc = localServices[curIdx - 1]
+                                                val prevInfo = visibleItems.firstOrNull { it.key == prevSvc.id }
+                                                if (prevInfo != null) {
+                                                    val prevCenter = prevInfo.offset + prevInfo.size / 2f
+                                                    if (curCenter < prevCenter) {
+                                                        val updated = localServices.toMutableList()
+                                                        val moved = updated.removeAt(curIdx)
+                                                        updated.add(curIdx - 1, moved)
+                                                        localServices = updated
+                                                        val delta = curInfo.offset - prevInfo.offset
+                                                        dragOffsetX += delta
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                onDragEnd = { finishDrag() },
+                                onDragCancel = { finishDrag() }
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
 
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = if (isDragging) 8.dp else 0.dp,
+                        shadowElevation = if (isDragging) 8.dp else 0.dp,
                         modifier = Modifier
+                            .then(itemModifier)
+                            .zIndex(if (isDragging) 10f else 1f)
+                            .graphicsLayer {
+                                translationX = if (isDragging) dragOffsetX else 0f
+                                scaleX = if (isDragging) 1.08f else 1.0f
+                                scaleY = if (isDragging) 1.08f else 1.0f
+                            }
+                            .then(reorderModifier)
                             .clip(RoundedCornerShape(10.dp))
                             .clickable { selectedServiceId = svc.id }
                     ) {
@@ -202,27 +318,27 @@ fun AddBillBottomSheet(
                     }
                 }
 
-                if (onReorderServices != null && services.size > 1) {
+                item(key = "manage_services_btn") {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .clickable { showReorderDialog = true }
+                            .clickable { onOpenManageServices() }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.SwapVert,
+                                imageVector = Icons.Default.Add,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = stringResource(R.string.reorder_services_chip),
+                                text = "Kelola",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -230,55 +346,31 @@ fun AddBillBottomSheet(
                     }
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onOpenManageServices() }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                item(key = "json_import_btn") {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onOpenJsonImport() }
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Kelola",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onOpenJsonImport() }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Suntik AI",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Suntik AI",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
@@ -715,16 +807,6 @@ fun AddBillBottomSheet(
                     TextButton(onClick = { showDeleteConfirmDialog = false }) {
                         Text("Batal")
                     }
-                }
-            )
-        }
-
-        if (showReorderDialog && onReorderServices != null) {
-            ReorderServicesDialog(
-                services = services,
-                onDismiss = { showReorderDialog = false },
-                onSaveOrder = { newOrder ->
-                    onReorderServices(newOrder)
                 }
             )
         }

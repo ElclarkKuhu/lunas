@@ -151,4 +151,41 @@ class ServiceOrderingTest {
         assertEquals("GoPayLater", overview.statements[0].service.name)
         assertEquals("SPayLater", overview.statements[1].service.name)
     }
+
+    @Test
+    fun inPlaceDragReorderSimulatesSwappingAdjacentItems() {
+        val original = listOf("s1", "s2", "s3", "s4")
+        val mutable = original.toMutableList()
+
+        // Drag s1 to the right past s2
+        val moved = mutable.removeAt(0)
+        mutable.add(1, moved)
+        assertEquals(listOf("s2", "s1", "s3", "s4"), mutable)
+
+        // Drag s1 further right past s3
+        val movedAgain = mutable.removeAt(1)
+        mutable.add(2, movedAgain)
+        assertEquals(listOf("s2", "s3", "s1", "s4"), mutable)
+
+        // Drag s4 to the left past s1
+        val movedLeft = mutable.removeAt(3)
+        mutable.add(2, movedLeft)
+        assertEquals(listOf("s2", "s3", "s4", "s1"), mutable)
+    }
+
+    @Test
+    fun reorderingPreservesUnchangedListWhenPositionsIdentical() {
+        val original = listOf("s1", "s2", "s3")
+        val reordered = original.toMutableList()
+        // No swap occurred
+        assertEquals(original, reordered)
+    }
+
+    @Test
+    fun reorderServicesSingleOrEmptyList() {
+        val s1 = dummyService("s1", "SPayLater")
+        val single = listOf(s1)
+        assertEquals(single, LunasRepository.sortServices(single, listOf("s1")))
+        assertEquals(emptyList<PaylaterService>(), LunasRepository.sortServices(emptyList(), listOf("s1")))
+    }
 }

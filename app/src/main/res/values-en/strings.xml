@@ -165,4 +165,6 @@
     <string name="reorder_services_reset_az">Reset A-Z</string>
     <string name="reorder_services_save">Save</string>
     <string name="reorder_services_cancel">Cancel</string>
+    <string name="widget_badge_overdue">Overdue</string>
+    <string name="reorder_services_drag_hint">Hold &amp; drag to reorder</string>
 </resources>

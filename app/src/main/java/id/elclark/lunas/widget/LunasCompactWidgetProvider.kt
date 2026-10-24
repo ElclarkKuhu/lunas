@@ -85,20 +85,24 @@ class LunasCompactWidgetProvider : AppWidgetProvider() {
                         views.setTextViewText(R.id.widget_compact_total_amount, DateUtils.formatCurrency(overview.totalDue, currencyCode))
 
                         // Status Badge
+                        val hasOverdue = overview.statements.any { !it.isPaid && it.subtotal > 0 && it.daysUntilDue < 0 }
+
+                        views.setViewVisibility(R.id.widget_compact_status_badge_neutral, View.GONE)
+                        views.setViewVisibility(R.id.widget_compact_status_badge_paid, View.GONE)
+                        views.setViewVisibility(R.id.widget_compact_status_badge_due, View.GONE)
+                        views.setViewVisibility(R.id.widget_compact_status_badge_overdue, View.GONE)
+
                         if (overview.totalDue == 0L) {
                             views.setViewVisibility(R.id.widget_compact_status_badge_neutral, View.VISIBLE)
-                            views.setViewVisibility(R.id.widget_compact_status_badge_paid, View.GONE)
-                            views.setViewVisibility(R.id.widget_compact_status_badge_due, View.GONE)
                             views.setTextViewText(R.id.widget_compact_status_badge_neutral, context.getString(R.string.widget_neutral_status))
                         } else if (overview.paidCount == overview.totalCount && overview.totalCount > 0) {
                             views.setViewVisibility(R.id.widget_compact_status_badge_paid, View.VISIBLE)
-                            views.setViewVisibility(R.id.widget_compact_status_badge_neutral, View.GONE)
-                            views.setViewVisibility(R.id.widget_compact_status_badge_due, View.GONE)
                             views.setTextViewText(R.id.widget_compact_status_badge_paid, context.getString(R.string.widget_paid_status))
+                        } else if (hasOverdue) {
+                            views.setViewVisibility(R.id.widget_compact_status_badge_overdue, View.VISIBLE)
+                            views.setTextViewText(R.id.widget_compact_status_badge_overdue, context.getString(R.string.widget_badge_overdue))
                         } else {
                             views.setViewVisibility(R.id.widget_compact_status_badge_due, View.VISIBLE)
-                            views.setViewVisibility(R.id.widget_compact_status_badge_paid, View.GONE)
-                            views.setViewVisibility(R.id.widget_compact_status_badge_neutral, View.GONE)
                             views.setTextViewText(R.id.widget_compact_status_badge_due, context.getString(R.string.widget_due_status, overview.paidCount, overview.totalCount))
                         }
 

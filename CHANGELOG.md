@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.1
+
+- **Native Drag-and-Drop Service Ordering**:
+  - Eliminated extra modal dialog and buttons for reordering services in the Add Bill sheet.
+  - Implemented intuitive, in-place long-press drag-and-drop directly on the service chips row with smooth animations, haptic feedback, and automatic list placement animation.
+  - Reordering automatically persists to repository settings and synchronizes home screen widgets immediately upon release.
+- **2x2 Compact Widget Visual Redesign**:
+  - Modernized layout proportions and vertical rhythm to look clean and balanced on Android home screens.
+  - Integrated header status pill badge alongside section label to save vertical space and give the total amount a bold, prominent presentation (18sp).
+  - Added dedicated overdue status pill badge (`Ada Telat` / `Overdue`) for instant visual awareness of overdue accounts.
+  - Refined quick-add button size (28dp) and padding for improved thumb touch responsiveness.
+  - Polished padding, typography, and icon alignment in the upcoming bill card.
+
 ## 1.5
 
 - **Custom Service Ordering**:
