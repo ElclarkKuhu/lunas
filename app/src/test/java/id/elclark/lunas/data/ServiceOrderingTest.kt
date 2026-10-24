@@ -188,4 +188,44 @@ class ServiceOrderingTest {
         assertEquals(single, LunasRepository.sortServices(single, listOf("s1")))
         assertEquals(emptyList<PaylaterService>(), LunasRepository.sortServices(emptyList(), listOf("s1")))
     }
+
+    @Test
+    fun reorderActiveSubsetPreservesInactiveServicesAtEndInOrder() {
+        // Suppose user has 4 services: s1 (active), s2 (active), s3 (inactive), s4 (active)
+        val fullServices = listOf(
+            dummyService("s1", "SPayLater"),
+            dummyService("s2", "GoPayLater"),
+            dummyService("s3", "Akulaku"),
+            dummyService("s4", "Yup")
+        )
+        val initialOrder = listOf("s1", "s2", "s3", "s4")
+
+        // In AddBillBottomSheet, only active services [s1, s2, s4] are shown.
+        // User drags s4 to the front: [s4, s1, s2]
+        val reorderedActive = listOf("s4", "s1", "s2")
+
+        // Repository merge logic: orderedIds + existingOrder.filter { it !in orderedIds }
+        val mergedOrder = reorderedActive + initialOrder.filter { it !in reorderedActive }
+        assertEquals(listOf("s4", "s1", "s2", "s3"), mergedOrder)
+
+        // Sort all services with the merged order
+        val sorted = LunasRepository.sortServices(fullServices, mergedOrder)
+        assertEquals("Yup", sorted[0].name)
+        assertEquals("SPayLater", sorted[1].name)
+        assertEquals("GoPayLater", sorted[2].name)
+        assertEquals("Akulaku", sorted[3].name)
+    }
+
+    @Test
+    fun reorderingServicesWithUnknownOrRemovedIds() {
+        val services = listOf(
+            dummyService("s1", "SPayLater"),
+            dummyService("s2", "GoPayLater")
+        )
+        // Order contains an ID that was deleted or unknown ("s99")
+        val orderWithStale = listOf("s99", "s2", "s1")
+        val sorted = LunasRepository.sortServices(services, orderWithStale)
+        assertEquals("GoPayLater", sorted[0].name)
+        assertEquals("SPayLater", sorted[1].name)
+    }
 }

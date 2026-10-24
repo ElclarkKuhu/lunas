@@ -94,10 +94,10 @@ class LunasCompactWidgetProvider : AppWidgetProvider() {
 
                         if (overview.totalDue == 0L) {
                             views.setViewVisibility(R.id.widget_compact_status_badge_neutral, View.VISIBLE)
-                            views.setTextViewText(R.id.widget_compact_status_badge_neutral, context.getString(R.string.widget_neutral_status))
+                            views.setTextViewText(R.id.widget_compact_status_badge_neutral, context.getString(R.string.widget_compact_status_neutral))
                         } else if (overview.paidCount == overview.totalCount && overview.totalCount > 0) {
                             views.setViewVisibility(R.id.widget_compact_status_badge_paid, View.VISIBLE)
-                            views.setTextViewText(R.id.widget_compact_status_badge_paid, context.getString(R.string.widget_paid_status))
+                            views.setTextViewText(R.id.widget_compact_status_badge_paid, context.getString(R.string.widget_compact_status_paid))
                         } else if (hasOverdue) {
                             views.setViewVisibility(R.id.widget_compact_status_badge_overdue, View.VISIBLE)
                             views.setTextViewText(R.id.widget_compact_status_badge_overdue, context.getString(R.string.widget_badge_overdue))

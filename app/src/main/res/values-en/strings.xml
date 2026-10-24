@@ -166,5 +166,7 @@
     <string name="reorder_services_save">Save</string>
     <string name="reorder_services_cancel">Cancel</string>
     <string name="widget_badge_overdue">Overdue</string>
+    <string name="widget_compact_status_neutral">No Bills</string>
+    <string name="widget_compact_status_paid">Paid</string>
     <string name="reorder_services_drag_hint">Hold &amp; drag to reorder</string>
 </resources>

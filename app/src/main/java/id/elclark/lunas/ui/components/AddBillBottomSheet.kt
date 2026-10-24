@@ -5,13 +5,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +25,6 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ViewTimeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -107,11 +108,20 @@ fun AddBillBottomSheet(
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
 
-    var localServices by remember(services) { mutableStateOf(services) }
+    var localServices by remember { mutableStateOf(services) }
     var draggingServiceId by remember { mutableStateOf<String?>(null) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    var autoScrollJob by remember { mutableStateOf<Job?>(null) }
+
+    LaunchedEffect(services) {
+        if (draggingServiceId == null) {
+            localServices = services
+        }
+    }
 
     fun finishDrag() {
+        autoScrollJob?.cancel()
+        autoScrollJob = null
         val currentDraggingId = draggingServiceId
         if (currentDraggingId != null) {
             val originalIds = services.map { it.id }
@@ -230,9 +240,26 @@ fun AddBillBottomSheet(
                                                 val visualLeft = curInfo.offset + dragOffsetX
                                                 val visualRight = visualLeft + curInfo.size
                                                 if (visualRight > viewportWidth - 20) {
-                                                    coroutineScope.launch { lazyListState.scrollBy(15f) }
+                                                    if (autoScrollJob?.isActive != true) {
+                                                        autoScrollJob = coroutineScope.launch {
+                                                            while (isActive) {
+                                                                lazyListState.scrollBy(14f)
+                                                                delay(16)
+                                                            }
+                                                        }
+                                                    }
                                                 } else if (visualLeft < 20) {
-                                                    coroutineScope.launch { lazyListState.scrollBy(-15f) }
+                                                    if (autoScrollJob?.isActive != true) {
+                                                        autoScrollJob = coroutineScope.launch {
+                                                            while (isActive) {
+                                                                lazyListState.scrollBy(-14f)
+                                                                delay(16)
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    autoScrollJob?.cancel()
+                                                    autoScrollJob = null
                                                 }
                                             }
 
@@ -280,6 +307,7 @@ fun AddBillBottomSheet(
                     }
 
                     Surface(
+                        onClick = { selectedServiceId = svc.id },
                         shape = RoundedCornerShape(10.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         tonalElevation = if (isDragging) 8.dp else 0.dp,
@@ -293,8 +321,6 @@ fun AddBillBottomSheet(
                                 scaleY = if (isDragging) 1.08f else 1.0f
                             }
                             .then(reorderModifier)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { selectedServiceId = svc.id }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -320,11 +346,9 @@ fun AddBillBottomSheet(
 
                 item(key = "manage_services_btn") {
                     Surface(
+                        onClick = { onOpenManageServices() },
                         shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { onOpenManageServices() }
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -348,11 +372,9 @@ fun AddBillBottomSheet(
 
                 item(key = "json_import_btn") {
                     Surface(
+                        onClick = { onOpenJsonImport() },
                         shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { onOpenJsonImport() }
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
