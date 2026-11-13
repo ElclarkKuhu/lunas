@@ -76,7 +76,7 @@ class DataImportReceiver : BroadcastReceiver() {
                         for (item in items) {
                             dbHelper.insertItem(item)
                         }
-                        repository.reloadAll()
+                        repository.reloadAllNow()
                     }
                     "id.elclark.lunas.IMPORT_JSON", "com.example.lunas.IMPORT_JSON" -> {
                         val jsonString = intent.getStringExtra("json_string")

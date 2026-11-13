@@ -184,7 +184,7 @@ object NotificationHelper {
 
         if (!settings.notificationsEnabled) return
 
-        val services = dbHelper.getAllServices().filter { it.isActive }
+        val services = dbHelper.getAllServices()
         val items = dbHelper.getAllItems()
         val payments = dbHelper.getAllPaymentStatuses()
 

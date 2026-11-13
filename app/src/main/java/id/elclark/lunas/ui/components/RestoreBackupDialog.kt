@@ -21,7 +21,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun RestoreBackupDialog(
@@ -42,8 +44,9 @@ fun RestoreBackupDialog(
         if (uri != null) {
             coroutineScope.launch {
                 try {
-                    val stream = context.contentResolver.openInputStream(uri)
-                    val content = stream?.bufferedReader()?.use { it.readText() }
+                    val content = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    }
                     if (!content.isNullOrBlank()) {
                         backupJsonText = content
                         selectedFileName = uri.lastPathSegment?.substringAfterLast("/") ?: "File Cadangan.json"

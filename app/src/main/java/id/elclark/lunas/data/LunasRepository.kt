@@ -44,9 +44,11 @@ class LunasRepository(private val context: Context) {
             var latestYm: String? = null
 
             val breakdowns = mutableListOf<ServiceDebtBreakdown>()
+            val itemsByService = allItems.groupBy { it.serviceId }
+            val paidSet = allPayments.asSequence().filter { it.isPaid }.map { it.serviceId to it.yearMonth }.toHashSet()
 
             for (svc in allServices) {
-                val svcItems = allItems.filter { it.serviceId == svc.id }
+                val svcItems = itemsByService[svc.id] ?: emptyList()
                 if (svcItems.isEmpty()) continue
 
                 var svcDebt = 0L
@@ -55,9 +57,15 @@ class LunasRepository(private val context: Context) {
 
                 for (item in svcItems) {
                     var isInstallmentCounted = false
+                    val startYm = try {
+                        YearMonth.parse(item.startYearMonth)
+                    } catch (_: Exception) {
+                        YearMonth.now()
+                    }
                     for (t in 0 until item.totalTenor) {
-                        val ym = DateUtils.plusMonths(item.startYearMonth, t.toLong())
-                        val isPaid = allPayments.any { it.serviceId == svc.id && it.yearMonth == ym && it.isPaid }
+                        val ymObj = startYm.plusMonths(t.toLong())
+                        val ym = ymObj.format(DateUtils.YM_FORMATTER)
+                        val isPaid = (svc.id to ym) in paidSet
                         if (!isPaid) {
                             svcDebt += item.amountPerMonth
                             grandTotal += item.amountPerMonth
@@ -130,13 +138,16 @@ class LunasRepository(private val context: Context) {
             var totalPaid = 0L
             var paidCount = 0
 
+            val itemsByService = allItems.groupBy { it.serviceId }
+            val paidSet = allPayments.asSequence().filter { it.isPaid }.map { it.serviceId to it.yearMonth }.toHashSet()
+
             for (svc in allServices) {
                 // Find items active in targetYm
                 val computedItems = mutableListOf<ComputedBillItem>()
                 var subtotal = 0L
 
-                for (item in allItems) {
-                    if (item.serviceId != svc.id) continue
+                val svcItems = itemsByService[svc.id] ?: emptyList()
+                for (item in svcItems) {
                     val diff = DateUtils.monthDifference(item.startYearMonth, targetYm)
                     if (diff in 0 until item.totalTenor) {
                         val computed = ComputedBillItem(
@@ -152,7 +163,7 @@ class LunasRepository(private val context: Context) {
                 }
 
                 // Only show services that have items, or show active ones anyway
-                val isPaid = allPayments.find { it.serviceId == svc.id && it.yearMonth == targetYm }?.isPaid ?: false
+                val isPaid = (svc.id to targetYm) in paidSet
                 val dueDate = DateUtils.computeDueDate(targetYm, svc.dueDay, svc.dueMonthOffset)
                 val daysUntil = DateUtils.daysUntil(dueDate)
 
@@ -197,6 +208,7 @@ class LunasRepository(private val context: Context) {
                         else -> 2
                     }
                 }.thenBy { it.daysUntilDue }
+                .thenBy { it.service.billingCutoffDay }
                 .thenBy { orderMap[it.service.id] ?: Int.MAX_VALUE }
                 .thenBy { it.service.name }
             )
@@ -241,7 +253,7 @@ class LunasRepository(private val context: Context) {
     fun sortServices(services: List<PaylaterService>, order: List<String>): List<PaylaterService> =
         Companion.sortServices(services, order)
 
-    suspend fun reloadAllNow() = withContext(Dispatchers.IO) {
+    suspend fun reloadAllNow(updateWidgets: Boolean = true) = withContext(Dispatchers.IO) {
         val s = dbHelper.getAllServices()
         val i = dbHelper.getAllItems()
         val p = dbHelper.getAllPaymentStatuses()
@@ -250,7 +262,9 @@ class LunasRepository(private val context: Context) {
         _items.value = i
         _payments.value = p
         _settings.value = cfg
-        LunasWidgetProvider.updateAllWidgets(context)
+        if (updateWidgets) {
+            LunasWidgetProvider.updateAllWidgets(context)
+        }
     }
 
     fun reloadAll() {
@@ -279,7 +293,7 @@ class LunasRepository(private val context: Context) {
             createdAt = System.currentTimeMillis()
         )
         dbHelper.insertItem(item)
-        reloadAll()
+        reloadAllNow()
         item
     }
 
@@ -305,35 +319,35 @@ class LunasRepository(private val context: Context) {
             createdAt = existing?.createdAt ?: System.currentTimeMillis()
         )
         dbHelper.insertItem(item)
-        reloadAll()
+        reloadAllNow()
     }
 
     suspend fun deleteBillItem(id: String) = withContext(Dispatchers.IO) {
         dbHelper.deleteItem(id)
-        reloadAll()
+        reloadAllNow()
     }
 
     suspend fun togglePaymentStatus(serviceId: String, yearMonth: String) = withContext(Dispatchers.IO) {
-        val currentStatus = _payments.value.find { it.serviceId == serviceId && it.yearMonth == yearMonth }
+        val currentStatus = dbHelper.getAllPaymentStatuses().find { it.serviceId == serviceId && it.yearMonth == yearMonth }
         val newIsPaid = !(currentStatus?.isPaid ?: false)
         dbHelper.setPaymentStatus(serviceId, yearMonth, newIsPaid)
-        reloadAll()
+        reloadAllNow()
     }
 
     suspend fun saveService(service: PaylaterService) = withContext(Dispatchers.IO) {
         dbHelper.upsertService(service)
-        reloadAll()
+        reloadAllNow()
     }
 
     suspend fun archiveService(serviceId: String) = withContext(Dispatchers.IO) {
         dbHelper.archiveService(serviceId)
-        reloadAll()
+        reloadAllNow()
     }
 
     suspend fun updateSettings(settings: AppSettings) = withContext(Dispatchers.IO) {
         dbHelper.saveSettings(settings)
         _settings.value = settings
-        _services.value = sortServices(dbHelper.getAllServices(), settings.serviceOrder)
+        _services.value = sortServices(_services.value, settings.serviceOrder)
         LunasWidgetProvider.updateAllWidgets(context)
     }
 
@@ -342,7 +356,7 @@ class LunasRepository(private val context: Context) {
         val updated = _settings.value.copy(serviceOrder = fullOrder)
         dbHelper.saveSettings(updated)
         _settings.value = updated
-        _services.value = sortServices(dbHelper.getAllServices(), fullOrder)
+        _services.value = sortServices(_services.value, fullOrder)
         LunasWidgetProvider.updateAllWidgets(context)
     }
 
@@ -378,11 +392,31 @@ class LunasRepository(private val context: Context) {
     suspend fun importJsonData(rawText: String, merge: Boolean = true): Result<Int> = withContext(Dispatchers.IO) {
         try {
             var clean = rawText.trim()
-            if (clean.startsWith("```")) {
-                clean = clean.substringAfter("\n")
-            }
-            if (clean.endsWith("```")) {
-                clean = clean.substringBeforeLast("```").trim()
+            if (clean.contains("```")) {
+                val firstBrace = clean.indexOf('{')
+                val firstBracket = clean.indexOf('[')
+                val startIdx = when {
+                    firstBrace != -1 && firstBracket != -1 -> minOf(firstBrace, firstBracket)
+                    firstBrace != -1 -> firstBrace
+                    firstBracket != -1 -> firstBracket
+                    else -> -1
+                }
+                val lastBrace = clean.lastIndexOf('}')
+                val lastBracket = clean.lastIndexOf(']')
+                val endIdx = maxOf(lastBrace, lastBracket)
+                if (startIdx != -1 && endIdx != -1 && endIdx >= startIdx) {
+                    clean = clean.substring(startIdx, endIdx + 1).trim()
+                } else {
+                    if (clean.startsWith("```")) {
+                        clean = clean.substringAfter("```").trim()
+                        if (clean.startsWith("json", ignoreCase = true)) {
+                            clean = clean.substring(4).trim()
+                        }
+                    }
+                    if (clean.endsWith("```")) {
+                        clean = clean.substringBeforeLast("```").trim()
+                    }
+                }
             }
 
             val jsonElement = json.parseToJsonElement(clean)
@@ -411,11 +445,22 @@ class LunasRepository(private val context: Context) {
                 val rawService = obj["serviceId"]?.jsonPrimitive?.contentOrNull
                     ?: obj["service"]?.jsonPrimitive?.contentOrNull
                     ?: "spaylater"
-                val serviceId = when {
+
+                fun normalize(s: String) = s.lowercase().replace(" ", "").replace("_", "").replace("-", "")
+                val normalizedRaw = normalize(rawService)
+
+                val matchedService = currentServices.find { svc ->
+                    svc.id.equals(rawService, ignoreCase = true) ||
+                    svc.name.equals(rawService, ignoreCase = true) ||
+                    normalize(svc.id) == normalizedRaw ||
+                    normalize(svc.name) == normalizedRaw
+                }
+
+                val serviceId = matchedService?.id ?: when {
                     rawService.contains("gopay", ignoreCase = true) -> "gopaylater"
                     rawService.contains("shopee", ignoreCase = true) || rawService.contains("spay", ignoreCase = true) -> "spaylater"
                     rawService.contains("yup", ignoreCase = true) -> "yup"
-                    else -> rawService.lowercase().replace(" ", "").replace("_", "").replace("-", "")
+                    else -> normalizedRaw
                 }
 
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull
@@ -427,8 +472,10 @@ class LunasRepository(private val context: Context) {
                     for (key in keys) {
                         val el = obj[key] ?: continue
                         val prim = el.jsonPrimitive
-                        prim.longOrNull?.let { return it }
-                        prim.doubleOrNull?.let { return it.toLong() }
+                        if (!prim.isString) {
+                            prim.longOrNull?.let { return it }
+                            prim.doubleOrNull?.let { return it.toLong() }
+                        }
                         val content = prim.contentOrNull
                         if (!content.isNullOrBlank()) {
                             val sanitized = content.lowercase()
@@ -483,6 +530,7 @@ class LunasRepository(private val context: Context) {
                     is JsonArray -> {
                         if (!merge) {
                             dbHelper.deleteAllItems()
+                            dbHelper.deleteAllPayments()
                         }
                         for (el in jsonElement) {
                             if (el is JsonObject) {
@@ -507,7 +555,6 @@ class LunasRepository(private val context: Context) {
                                 for (p in backup.payments) {
                                     dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid, p.paidAt)
                                 }
-                                dbHelper.saveSettings(backup.settings)
                             } else {
                                 val servicesToRestore = if (backup.services.isNotEmpty()) backup.services else dbHelper.getAllServices()
                                 dbHelper.clearAndRestoreAll(servicesToRestore, backup.items, backup.payments, backup.settings)
@@ -518,6 +565,7 @@ class LunasRepository(private val context: Context) {
                             if (itemsArray != null) {
                                 if (!merge) {
                                     dbHelper.deleteAllItems()
+                                    dbHelper.deleteAllPayments()
                                 }
                                 for (el in itemsArray) {
                                     if (el is JsonObject) {
@@ -530,6 +578,7 @@ class LunasRepository(private val context: Context) {
                         } else if (jsonElement.containsKey("serviceId") || jsonElement.containsKey("service") || jsonElement.containsKey("amount")) {
                             if (!merge) {
                                 dbHelper.deleteAllItems()
+                                dbHelper.deleteAllPayments()
                             }
                             val item = parseItem(jsonElement)
                             dbHelper.insertItem(item)
@@ -549,7 +598,8 @@ class LunasRepository(private val context: Context) {
                                     dbHelper.setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid, p.paidAt)
                                 }
                             } else {
-                                dbHelper.clearAndRestoreAll(backup.services, backup.items, backup.payments, backup.settings)
+                                val servicesToRestore = if (backup.services.isNotEmpty()) backup.services else dbHelper.getAllServices()
+                                dbHelper.clearAndRestoreAll(servicesToRestore, backup.items, backup.payments, backup.settings)
                                 count = backup.items.size
                             }
                         }

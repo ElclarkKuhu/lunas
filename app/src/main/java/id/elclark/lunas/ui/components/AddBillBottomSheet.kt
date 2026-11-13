@@ -91,7 +91,7 @@ fun AddBillBottomSheet(
     var cicilanTitle by remember(editingItem?.id) {
         mutableStateOf(if (editingItem != null && editingItem.rawMathExpression == null) editingItem.title else "")
     }
-    var cicilanStartYm by remember(editingItem?.id, defaultYm) {
+    var cicilanStartYm by remember(editingItem?.id) {
         mutableStateOf(editingItem?.startYearMonth ?: defaultYm)
     }
 
@@ -755,6 +755,7 @@ fun AddBillBottomSheet(
                 Button(
                     onClick = {
                         val itemToEdit = editingItem
+                        val targetYm = itemToEdit?.startYearMonth ?: defaultYm
                         if (itemToEdit != null && onUpdateScratchpad != null) {
                             onUpdateScratchpad.invoke(
                                 itemToEdit.id,
@@ -762,7 +763,7 @@ fun AddBillBottomSheet(
                                 scratchpadTitle,
                                 scratchpadExpression,
                                 mathResult.total,
-                                defaultYm
+                                targetYm
                             )
                         } else {
                             onAddScratchpad(
@@ -770,7 +771,7 @@ fun AddBillBottomSheet(
                                 scratchpadTitle,
                                 scratchpadExpression,
                                 mathResult.total,
-                                defaultYm
+                                targetYm
                             )
                         }
                         onDismiss()

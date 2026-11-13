@@ -8,6 +8,8 @@ import id.elclark.lunas.model.AppSettings
 import id.elclark.lunas.model.BillItem
 import id.elclark.lunas.model.PaylaterService
 import id.elclark.lunas.model.PaymentStatus
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
@@ -135,16 +137,24 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         val db = readableDatabase
         val cursor = db.query(TABLE_SERVICES, null, null, null, null, null, "$COL_SERVICE_NAME ASC")
         cursor.use { c ->
+            val idCol = c.getColumnIndexOrThrow(COL_SERVICE_ID)
+            val nameCol = c.getColumnIndexOrThrow(COL_SERVICE_NAME)
+            val cutoffCol = c.getColumnIndexOrThrow(COL_SERVICE_CUTOFF)
+            val dueCol = c.getColumnIndexOrThrow(COL_SERVICE_DUE)
+            val offsetCol = c.getColumnIndexOrThrow(COL_SERVICE_OFFSET)
+            val colorCol = c.getColumnIndexOrThrow(COL_SERVICE_COLOR)
+            val activeCol = c.getColumnIndexOrThrow(COL_SERVICE_ACTIVE)
+
             while (c.moveToNext()) {
                 list.add(
                     PaylaterService(
-                        id = c.getString(c.getColumnIndexOrThrow(COL_SERVICE_ID)),
-                        name = c.getString(c.getColumnIndexOrThrow(COL_SERVICE_NAME)),
-                        billingCutoffDay = c.getInt(c.getColumnIndexOrThrow(COL_SERVICE_CUTOFF)),
-                        dueDay = c.getInt(c.getColumnIndexOrThrow(COL_SERVICE_DUE)),
-                        dueMonthOffset = c.getInt(c.getColumnIndexOrThrow(COL_SERVICE_OFFSET)),
-                        colorHex = c.getLong(c.getColumnIndexOrThrow(COL_SERVICE_COLOR)),
-                        isActive = c.getInt(c.getColumnIndexOrThrow(COL_SERVICE_ACTIVE)) == 1
+                        id = c.getString(idCol),
+                        name = c.getString(nameCol),
+                        billingCutoffDay = c.getInt(cutoffCol),
+                        dueDay = c.getInt(dueCol),
+                        dueMonthOffset = c.getInt(offsetCol),
+                        colorHex = c.getLong(colorCol),
+                        isActive = c.getInt(activeCol) == 1
                     )
                 )
             }
@@ -191,17 +201,26 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         val db = readableDatabase
         val cursor = db.query(TABLE_ITEMS, null, null, null, null, null, "$COL_ITEM_CREATED DESC")
         cursor.use { c ->
+            val idCol = c.getColumnIndexOrThrow(COL_ITEM_ID)
+            val serviceIdCol = c.getColumnIndexOrThrow(COL_ITEM_SERVICE_ID)
+            val titleCol = c.getColumnIndexOrThrow(COL_ITEM_TITLE)
+            val amountCol = c.getColumnIndexOrThrow(COL_ITEM_AMOUNT)
+            val tenorCol = c.getColumnIndexOrThrow(COL_ITEM_TENOR)
+            val startYmCol = c.getColumnIndexOrThrow(COL_ITEM_START_YM)
+            val mathCol = c.getColumnIndexOrThrow(COL_ITEM_MATH)
+            val createdCol = c.getColumnIndexOrThrow(COL_ITEM_CREATED)
+
             while (c.moveToNext()) {
                 list.add(
                     BillItem(
-                        id = c.getString(c.getColumnIndexOrThrow(COL_ITEM_ID)),
-                        serviceId = c.getString(c.getColumnIndexOrThrow(COL_ITEM_SERVICE_ID)),
-                        title = c.getString(c.getColumnIndexOrThrow(COL_ITEM_TITLE)),
-                        amountPerMonth = c.getLong(c.getColumnIndexOrThrow(COL_ITEM_AMOUNT)),
-                        totalTenor = c.getInt(c.getColumnIndexOrThrow(COL_ITEM_TENOR)).coerceAtLeast(1),
-                        startYearMonth = c.getString(c.getColumnIndexOrThrow(COL_ITEM_START_YM)),
-                        rawMathExpression = c.getString(c.getColumnIndexOrThrow(COL_ITEM_MATH)),
-                        createdAt = c.getLong(c.getColumnIndexOrThrow(COL_ITEM_CREATED))
+                        id = c.getString(idCol),
+                        serviceId = c.getString(serviceIdCol),
+                        title = c.getString(titleCol),
+                        amountPerMonth = c.getLong(amountCol),
+                        totalTenor = c.getInt(tenorCol).coerceAtLeast(1),
+                        startYearMonth = c.getString(startYmCol),
+                        rawMathExpression = c.getString(mathCol),
+                        createdAt = c.getLong(createdCol)
                     )
                 )
             }
@@ -240,18 +259,28 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
         val db = readableDatabase
         val cursor = db.query(TABLE_PAYMENTS, null, null, null, null, null, null)
         cursor.use { c ->
+            val serviceIdCol = c.getColumnIndexOrThrow(COL_PAYMENT_SERVICE_ID)
+            val ymCol = c.getColumnIndexOrThrow(COL_PAYMENT_YM)
+            val isPaidCol = c.getColumnIndexOrThrow(COL_PAYMENT_IS_PAID)
+            val paidAtCol = c.getColumnIndexOrThrow(COL_PAYMENT_PAID_AT)
+
             while (c.moveToNext()) {
                 list.add(
                     PaymentStatus(
-                        serviceId = c.getString(c.getColumnIndexOrThrow(COL_PAYMENT_SERVICE_ID)),
-                        yearMonth = c.getString(c.getColumnIndexOrThrow(COL_PAYMENT_YM)),
-                        isPaid = c.getInt(c.getColumnIndexOrThrow(COL_PAYMENT_IS_PAID)) == 1,
-                        paidAt = if (c.isNull(c.getColumnIndexOrThrow(COL_PAYMENT_PAID_AT))) null else c.getLong(c.getColumnIndexOrThrow(COL_PAYMENT_PAID_AT))
+                        serviceId = c.getString(serviceIdCol),
+                        yearMonth = c.getString(ymCol),
+                        isPaid = c.getInt(isPaidCol) == 1,
+                        paidAt = if (c.isNull(paidAtCol)) null else c.getLong(paidAtCol)
                     )
                 )
             }
         }
         return list
+    }
+
+    fun deleteAllPayments() {
+        val db = writableDatabase
+        db.delete(TABLE_PAYMENTS, null, null)
     }
 
     fun setPaymentStatus(
@@ -287,9 +316,11 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
 
         val cursor = db.query(TABLE_SETTINGS, null, null, null, null, null, null)
         cursor.use { c ->
+            val keyCol = c.getColumnIndexOrThrow(COL_SETTING_KEY)
+            val valCol = c.getColumnIndexOrThrow(COL_SETTING_VAL)
             while (c.moveToNext()) {
-                val key = c.getString(c.getColumnIndexOrThrow(COL_SETTING_KEY))
-                val value = c.getString(c.getColumnIndexOrThrow(COL_SETTING_VAL))
+                val key = c.getString(keyCol)
+                val value = c.getString(valCol)
                 when (key) {
                     "biometric_enabled" -> biometric = value.toBoolean()
                     "notifications_enabled" -> notifications = value.toBoolean()
@@ -302,8 +333,17 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
                     "notify_overdue" -> notifyOverdue = value.toBoolean()
                     "currency_code" -> currencyCode = value
                     "service_order" -> {
-                        if (value.isNotBlank()) {
-                            serviceOrder = value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                        val trimmed = value.trim()
+                        if (trimmed.isNotEmpty()) {
+                            serviceOrder = if (trimmed.startsWith("[")) {
+                                try {
+                                    Json.decodeFromString<List<String>>(trimmed)
+                                } catch (_: Exception) {
+                                    trimmed.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                }
+                            } else {
+                                trimmed.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            }
                         }
                     }
                 }
@@ -338,7 +378,7 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
             saveSettingKeyVal(db, "notify_due_date", settings.notifyOnDueDate.toString())
             saveSettingKeyVal(db, "notify_overdue", settings.notifyOnOverdue.toString())
             saveSettingKeyVal(db, "currency_code", settings.currencyCode)
-            saveSettingKeyVal(db, "service_order", settings.serviceOrder.joinToString(","))
+            saveSettingKeyVal(db, "service_order", Json.encodeToString(settings.serviceOrder))
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -367,10 +407,54 @@ class LunasDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE
             db.delete(TABLE_PAYMENTS, null, null)
             db.delete(TABLE_SETTINGS, null, null)
 
-            for (s in services) upsertService(s)
-            for (i in items) insertItem(i)
-            for (p in payments) setPaymentStatus(p.serviceId, p.yearMonth, p.isPaid, p.paidAt)
-            saveSettings(settings)
+            for (s in services) {
+                val cv = ContentValues().apply {
+                    put(COL_SERVICE_ID, s.id)
+                    put(COL_SERVICE_NAME, s.name)
+                    put(COL_SERVICE_CUTOFF, s.billingCutoffDay)
+                    put(COL_SERVICE_DUE, s.dueDay)
+                    put(COL_SERVICE_OFFSET, s.dueMonthOffset)
+                    put(COL_SERVICE_COLOR, s.colorHex)
+                    put(COL_SERVICE_ACTIVE, if (s.isActive) 1 else 0)
+                }
+                db.insertWithOnConflict(TABLE_SERVICES, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            }
+
+            for (i in items) {
+                val cv = ContentValues().apply {
+                    put(COL_ITEM_ID, i.id)
+                    put(COL_ITEM_SERVICE_ID, i.serviceId)
+                    put(COL_ITEM_TITLE, i.title)
+                    put(COL_ITEM_AMOUNT, i.amountPerMonth)
+                    put(COL_ITEM_TENOR, i.totalTenor.coerceAtLeast(1))
+                    put(COL_ITEM_START_YM, i.startYearMonth)
+                    put(COL_ITEM_MATH, i.rawMathExpression)
+                    put(COL_ITEM_CREATED, i.createdAt)
+                }
+                db.insertWithOnConflict(TABLE_ITEMS, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            }
+
+            for (p in payments) {
+                val cv = ContentValues().apply {
+                    put(COL_PAYMENT_SERVICE_ID, p.serviceId)
+                    put(COL_PAYMENT_YM, p.yearMonth)
+                    put(COL_PAYMENT_IS_PAID, if (p.isPaid) 1 else 0)
+                    put(COL_PAYMENT_PAID_AT, if (p.isPaid) (p.paidAt ?: System.currentTimeMillis()) else null)
+                }
+                db.insertWithOnConflict(TABLE_PAYMENTS, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            }
+
+            saveSettingKeyVal(db, "biometric_enabled", settings.biometricEnabled.toString())
+            saveSettingKeyVal(db, "notifications_enabled", settings.notificationsEnabled.toString())
+            saveSettingKeyVal(db, "reminder_days", settings.reminderDaysBefore.toString())
+            saveSettingKeyVal(db, "reminder_hour", settings.reminderHour.toString())
+            saveSettingKeyVal(db, "reminder_minute", settings.reminderMinute.toString())
+            saveSettingKeyVal(db, "notify_cutoff", settings.notifyOnCutoff.toString())
+            saveSettingKeyVal(db, "notify_due_soon", settings.notifyDueSoon.toString())
+            saveSettingKeyVal(db, "notify_due_date", settings.notifyOnDueDate.toString())
+            saveSettingKeyVal(db, "notify_overdue", settings.notifyOnOverdue.toString())
+            saveSettingKeyVal(db, "currency_code", settings.currencyCode)
+            saveSettingKeyVal(db, "service_order", Json.encodeToString(settings.serviceOrder))
 
             db.setTransactionSuccessful()
         } finally {

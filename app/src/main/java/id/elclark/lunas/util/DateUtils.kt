@@ -39,8 +39,10 @@ object DateUtils {
         "Jul", "Agt", "Sep", "Okt", "Nov", "Des"
     )
 
+    val YM_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
+
     fun currentYearMonth(): String {
-        return YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))
+        return YearMonth.now().format(YM_FORMATTER)
     }
 
     fun parseYearMonth(ym: String): YearMonth {
@@ -77,7 +79,7 @@ object DateUtils {
 
     fun plusMonths(ym: String, monthsToAdd: Long): String {
         val parsed = parseYearMonth(ym)
-        return parsed.plusMonths(monthsToAdd).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+        return parsed.plusMonths(monthsToAdd).format(YM_FORMATTER)
     }
 
     fun monthDifference(fromYm: String, toYm: String): Int {
@@ -98,15 +100,18 @@ object DateUtils {
     ): String {
         val currentYm = parseYearMonth(ym)
         val currentMonthShort = ID_MONTH_NAMES_SHORT.getOrElse(currentYm.monthValue - 1) { "" }
+        val clampedCutoffDay = billingCutoffDay.coerceIn(1, currentYm.lengthOfMonth())
 
         return if (dueMonthOffset == 1) {
             // Cutoff in currentMonth, Due in nextMonth, e.g. 21 Okt - 1 Nov
             val nextYm = currentYm.plusMonths(1)
             val nextMonthShort = ID_MONTH_NAMES_SHORT.getOrElse(nextYm.monthValue - 1) { "" }
-            "($billingCutoffDay $currentMonthShort - $dueDay $nextMonthShort)"
+            val clampedDueDay = dueDay.coerceIn(1, nextYm.lengthOfMonth())
+            "($clampedCutoffDay $currentMonthShort - $clampedDueDay $nextMonthShort)"
         } else {
             // Cutoff and Due in the same month, e.g. 13 Okt - 22 Okt
-            "($billingCutoffDay $currentMonthShort - $dueDay $currentMonthShort)"
+            val clampedDueDay = dueDay.coerceIn(1, currentYm.lengthOfMonth())
+            "($clampedCutoffDay $currentMonthShort - $clampedDueDay $currentMonthShort)"
         }
     }
 
@@ -153,6 +158,13 @@ object DateUtils {
         return formatCurrency(amount, "IDR", withPrefix)
     }
 
+    private val currencyFormatters: Map<String, ThreadLocal<DecimalFormat>> = supportedCurrencies.associate { curr ->
+        curr.code to ThreadLocal.withInitial {
+            val symbols = DecimalFormatSymbols(Locale.forLanguageTag(curr.localeTag))
+            DecimalFormat("#,##0", symbols)
+        }
+    }
+
     fun formatCurrency(
         amount: Long,
         currencyCode: String = "IDR",
@@ -160,8 +172,8 @@ object DateUtils {
     ): String {
         val currency = supportedCurrencies.find { it.code == currencyCode }
             ?: supportedCurrencies.first()
-        val symbols = DecimalFormatSymbols(Locale.forLanguageTag(currency.localeTag))
-        val formatter = DecimalFormat("#,##0", symbols)
+        val formatter = currencyFormatters[currency.code]?.get()
+            ?: DecimalFormat("#,##0", DecimalFormatSymbols(Locale.forLanguageTag(currency.localeTag)))
         val formattedNumber = formatter.format(amount)
         return if (withPrefix) "${currency.symbol} $formattedNumber" else formattedNumber
     }

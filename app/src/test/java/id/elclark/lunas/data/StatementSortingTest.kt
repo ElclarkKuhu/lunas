@@ -113,4 +113,47 @@ class StatementSortingTest {
         assertEquals("GoPayLater", overview.statements[0].service.name)
         assertEquals("SPayLater", overview.statements[1].service.name)
     }
+
+    @Test
+    fun tieBreakerPrioritizesEarlierBillingCutoffDayWhenDaysUntilDueIsEqual() {
+        // Both s1 and s2 have identical due dates (e.g. dueDay = 1, offset = 1 -> due next month on 1st)
+        // s1 has cutoff on 21st (21 Nov), s2 has cutoff on 15th (15 Nov)
+        val s1 = PaylaterService(
+            id = "s1",
+            name = "SPayLater",
+            colorHex = 0xFF000000L,
+            billingCutoffDay = 21,
+            dueDay = 1,
+            dueMonthOffset = 1,
+            isActive = true
+        )
+        val s2 = PaylaterService(
+            id = "s2",
+            name = "GoPayLater",
+            colorHex = 0xFF000000L,
+            billingCutoffDay = 15,
+            dueDay = 1,
+            dueMonthOffset = 1,
+            isActive = true
+        )
+
+        val items = listOf(
+            BillItem("i1", "s1", "Item 1", 50_000, 1, "2026-10"),
+            BillItem("i2", "s2", "Item 2", 50_000, 1, "2026-10")
+        )
+
+        val overview = LunasRepository.computeMonthlyOverview(
+            targetYm = "2026-10",
+            allServices = listOf(s1, s2),
+            allItems = items,
+            allPayments = emptyList()
+        )
+
+        assertEquals(2, overview.statements.size)
+        // 15th cutoff should appear before 21st cutoff when daysUntilDue is equal
+        assertEquals("GoPayLater", overview.statements[0].service.name)
+        assertEquals(15, overview.statements[0].service.billingCutoffDay)
+        assertEquals("SPayLater", overview.statements[1].service.name)
+        assertEquals(21, overview.statements[1].service.billingCutoffDay)
+    }
 }

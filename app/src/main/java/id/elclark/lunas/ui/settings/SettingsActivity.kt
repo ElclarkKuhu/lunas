@@ -55,7 +55,9 @@ import id.elclark.lunas.util.DateUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsActivity : FragmentActivity() {
 
@@ -130,13 +132,14 @@ fun SettingsScreen(
         }
     }
 
+    val latestSettings by rememberUpdatedState(settings)
     val timePickerDialog = remember(context, settings.reminderHour, settings.reminderMinute) {
         TimePickerDialog(
             context,
             { _, hourOfDay, minute ->
                 coroutineScope.launch {
                     repository.updateSettings(
-                        settings.copy(
+                        latestSettings.copy(
                             reminderHour = hourOfDay,
                             reminderMinute = minute
                         )
@@ -148,6 +151,12 @@ fun SettingsScreen(
             settings.reminderMinute,
             DateFormat.is24HourFormat(context)
         )
+    }
+
+    DisposableEffect(timePickerDialog) {
+        onDispose {
+            timePickerDialog.dismiss()
+        }
     }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -173,8 +182,10 @@ fun SettingsScreen(
         if (uri != null) {
             coroutineScope.launch {
                 try {
-                    context.contentResolver.openOutputStream(uri)?.use { os ->
-                        os.write(exportJsonContent.toByteArray(Charsets.UTF_8))
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { os ->
+                            os.write(exportJsonContent.toByteArray(Charsets.UTF_8))
+                        }
                     }
                     Toast.makeText(context, backupSuccessText, Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
@@ -232,7 +243,7 @@ fun SettingsScreen(
                     PreferenceClickableRow(
                         icon = Icons.Default.CreditCard,
                         title = stringResource(R.string.settings_manage_services),
-                        subtitle = stringResource(R.string.settings_manage_services_subtitle, services.size),
+                        subtitle = stringResource(R.string.settings_manage_services_subtitle, services.count { it.isActive }),
                         onClick = onNavigateToManageServices
                     )
                 }

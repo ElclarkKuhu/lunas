@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.5
+
+- **Statement & Widget Tie-Breaking**:
+  - Added `billingCutoffDay` as a tie-breaker after `daysUntilDue` in `computeMonthlyOverview`, prioritizing earlier-printed statements (e.g., GoPayLater on the 15th before SPayLater on the 21st) when due dates match.
+- **Data Integrity & JSON Import Fixes**:
+  - Fixed `parseAmount` in AI/JSON import so quoted Indonesian-formatted amounts (e.g., `"125.500"`) are sanitized as integers instead of truncated decimals.
+  - Fixed service ID generation in Manage Services to avoid overwriting existing services, prevent comma corruption in `service_order`, and preserve `isActive` when editing archived services.
+  - Migrated `service_order` storage to JSON with legacy comma-separated fallback, and improved service matching and non-merge payment cleanup during JSON import.
+  - Awaited `reloadAllNow()` on repository mutations and `DataImportReceiver` to prevent stale reads and premature broadcast completion.
+- **Notifications, Receivers & Lifecycle**:
+  - Offloaded `AlarmReceiver` and `BootReceiver` work to `Dispatchers.IO` via `goAsync()`, and registered `MY_PACKAGE_REPLACED`, `TIME_SET`, and `TIMEZONE_CHANGED` to keep daily alarms scheduled.
+  - Included archived services with remaining unpaid bills in reminder notifications.
+  - Set `MainActivity` to `singleTop`, deferred initial alarm scheduling until `POST_NOTIFICATIONS` is granted on Android 13+, and refreshed `baseYm` across month rollovers.
+  - Fixed stale `settings` capture in `TimePickerDialog`, moved SAF backup read/write to `Dispatchers.IO`, and fixed active service count display in Settings.
+- **Performance & Code Quality**:
+  - Pre-indexed items and paid statuses in `calculateTotalOwed` and `computeMonthlyOverview`, cached `DateUtils` formatters, hoisted SQLite cursor column lookups, skipped unnecessary widget updates on `ON_RESUME`, and extracted shared `WidgetUtils`.
+
 ## 1.5.4
 
 - **Manage Services Floating Action Button**:

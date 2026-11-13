@@ -115,11 +115,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
                     }
 
                     // Upcoming Due Bill
-                    val unpaidStatements = overview.statements
-                        .filter { !it.isPaid && it.subtotal > 0 }
-                        .sortedBy { it.daysUntilDue }
-
-                    val nextBill = unpaidStatements.firstOrNull()
+                    val nextBill = WidgetUtils.selectNextBill(overview)
 
                     if (nextBill != null) {
                         // Card Row 1: Service Name (left) & Amount (right)
@@ -128,38 +124,7 @@ class LunasWidgetProvider : AppWidgetProvider() {
                         views.setViewVisibility(R.id.widget_upcoming_amount, View.VISIBLE)
 
                         // Card Row 2: Short formatted due date with remaining days & status styling
-                        val dueFormatted = nextBill.dueDate?.let { DateUtils.formatDueDateShort(it) } ?: nextBill.dueDateText
-                        val (dueDesc, textColorRes, iconRes) = when {
-                            nextBill.daysUntilDue < 0 -> {
-                                val days = -nextBill.daysUntilDue
-                                Triple(
-                                    context.getString(R.string.widget_due_overdue, days, dueFormatted),
-                                    R.color.status_overdue,
-                                    R.drawable.ic_widget_warning
-                                )
-                            }
-                            nextBill.daysUntilDue == 0 -> {
-                                Triple(
-                                    context.getString(R.string.widget_due_today, dueFormatted),
-                                    R.color.status_due_soon,
-                                    R.drawable.ic_widget_calendar
-                                )
-                            }
-                            nextBill.daysUntilDue == 1 -> {
-                                Triple(
-                                    context.getString(R.string.widget_due_tomorrow, dueFormatted),
-                                    R.color.status_due_soon,
-                                    R.drawable.ic_widget_calendar
-                                )
-                            }
-                            else -> {
-                                Triple(
-                                    context.getString(R.string.widget_due_days, dueFormatted, nextBill.daysUntilDue),
-                                    R.color.dark_text_secondary,
-                                    R.drawable.ic_widget_calendar
-                                )
-                            }
-                        }
+                        val (dueDesc, textColorRes, iconRes) = WidgetUtils.formatUpcomingDueDisplay(context, nextBill)
 
                         views.setTextViewText(R.id.widget_upcoming_subtext, dueDesc)
                         views.setTextColor(R.id.widget_upcoming_subtext, ContextCompat.getColor(context, textColorRes))

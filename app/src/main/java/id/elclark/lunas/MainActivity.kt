@@ -44,11 +44,12 @@ class MainActivity : FragmentActivity() {
     val dbHelper = LunasDatabaseHelper.getInstance(this)
     val settings = dbHelper.getSettings()
     if (settings.notificationsEnabled) {
-      NotificationHelper.scheduleDailyAlarm(this, settings.reminderHour, settings.reminderMinute)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-          requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+      val hasPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+      if (hasPermission) {
+        NotificationHelper.scheduleDailyAlarm(this, settings.reminderHour, settings.reminderMinute)
+      } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
       }
     }
 

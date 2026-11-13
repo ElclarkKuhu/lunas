@@ -86,6 +86,12 @@ fun ManageServicesScreen(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var autoScrollJob by remember { mutableStateOf<Job?>(null) }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            autoScrollJob?.cancel()
+        }
+    }
+
     LaunchedEffect(services) {
         if (draggingServiceId == null) {
             localServices = services
@@ -530,6 +536,7 @@ fun ManageServicesScreen(
     if (showServiceFormSheet) {
         ServiceFormBottomSheet(
             service = editingService,
+            existingServiceIds = remember(services) { services.map { it.id }.toSet() },
             onDismiss = {
                 showServiceFormSheet = false
                 editingService = null
@@ -587,6 +594,7 @@ fun ManageServicesScreen(
 @Composable
 private fun ServiceFormBottomSheet(
     service: PaylaterService?,
+    existingServiceIds: Set<String> = emptySet(),
     onDismiss: () -> Unit,
     onSave: (PaylaterService) -> Unit
 ) {
@@ -776,15 +784,29 @@ private fun ServiceFormBottomSheet(
 
             Button(
                 onClick = {
-                    val svcId = service?.id ?: name.lowercase().replace(" ", "_").trim()
+                    val svcId = if (service != null) {
+                        service.id
+                    } else {
+                        var baseId = name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+                        if (baseId.isBlank()) {
+                            baseId = "service"
+                        }
+                        var candidateId = baseId
+                        var suffix = 2
+                        while (candidateId in existingServiceIds) {
+                            candidateId = "${baseId}_$suffix"
+                            suffix++
+                        }
+                        candidateId
+                    }
                     val newService = PaylaterService(
-                        id = if (svcId.isBlank()) UUID.randomUUID().toString() else svcId,
+                        id = svcId,
                         name = name.trim(),
                         billingCutoffDay = cutoff,
                         dueDay = due,
                         dueMonthOffset = dueOffset,
                         colorHex = selectedColor,
-                        isActive = true
+                        isActive = service?.isActive ?: true
                     )
                     onSave(newService)
                 },

@@ -59,7 +59,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun refresh() {
         viewModelScope.launch {
-            repository.reloadAllNow()
+            repository.reloadAllNow(updateWidgets = false)
         }
     }
 
@@ -87,6 +87,22 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             repository.togglePaymentStatus(serviceId, ym)
         }
+    }
+
+    fun computeOverview(
+        ym: String,
+        services: List<PaylaterService>,
+        items: List<BillItem>,
+        payments: List<PaymentStatus>,
+        serviceOrder: List<String>
+    ): MonthlyOverview {
+        return repository.computeMonthlyOverview(
+            targetYm = ym,
+            allServices = services,
+            allItems = items,
+            allPayments = payments,
+            serviceOrder = serviceOrder
+        )
     }
 
     fun computeOverview(ym: String): MonthlyOverview {

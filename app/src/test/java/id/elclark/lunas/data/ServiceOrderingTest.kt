@@ -107,6 +107,27 @@ class ServiceOrderingTest {
     }
 
     @Test
+    fun parsesServiceOrderJsonAndLegacyCommaFormat() {
+        // Modern JSON format
+        val jsonValue = """["spaylater", "gopaylater", "yup"]"""
+        val parsedFromJson = if (jsonValue.trim().startsWith("[")) {
+            Json.decodeFromString<List<String>>(jsonValue.trim())
+        } else {
+            jsonValue.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        }
+        assertEquals(listOf("spaylater", "gopaylater", "yup"), parsedFromJson)
+
+        // Legacy comma-separated format
+        val legacyValue = "spaylater, gopaylater , yup"
+        val parsedFromLegacy = if (legacyValue.trim().startsWith("[")) {
+            Json.decodeFromString<List<String>>(legacyValue.trim())
+        } else {
+            legacyValue.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        }
+        assertEquals(listOf("spaylater", "gopaylater", "yup"), parsedFromLegacy)
+    }
+
+    @Test
     fun orderMergingPreservesUnmentionedServices() {
         val existingOrder = listOf("s1", "s2", "s3", "s4")
         val newSubsetOrder = listOf("s3", "s1")

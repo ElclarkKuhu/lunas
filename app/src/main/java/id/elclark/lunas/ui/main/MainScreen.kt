@@ -52,11 +52,11 @@ fun MainScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedYm by viewModel.selectedYm.collectAsStateWithLifecycle()
 
-    val baseYm = remember { DateUtils.currentYearMonth() }
+    var baseYm by remember { mutableStateOf(DateUtils.currentYearMonth()) }
     val initialPage = 1200
     val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { 2400 })
 
-    val currentPagerYm = remember(pagerState.currentPage) {
+    val currentPagerYm = remember(pagerState.currentPage, baseYm) {
         DateUtils.plusMonths(baseYm, (pagerState.currentPage - initialPage).toLong())
     }
 
@@ -92,6 +92,10 @@ fun MainScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val currentYm = DateUtils.currentYearMonth()
+                if (baseYm != currentYm) {
+                    baseYm = currentYm
+                }
                 viewModel.refresh()
             }
         }
@@ -278,11 +282,17 @@ fun MainScreen(
                             modifier = Modifier.fillMaxSize(),
                             beyondViewportPageCount = 1
                         ) { page ->
-                            val pageYm = remember(page) {
+                            val pageYm = remember(page, baseYm) {
                                 DateUtils.plusMonths(baseYm, (page - initialPage).toLong())
                             }
-                            val overview = remember(pageYm, state.services, state.items, state.payments) {
-                                viewModel.computeOverview(pageYm)
+                            val overview = remember(pageYm, state.services, state.items, state.payments, state.settings.serviceOrder) {
+                                viewModel.computeOverview(
+                                    ym = pageYm,
+                                    services = state.services,
+                                    items = state.items,
+                                    payments = state.payments,
+                                    serviceOrder = state.settings.serviceOrder
+                                )
                             }
 
                             LazyColumn(

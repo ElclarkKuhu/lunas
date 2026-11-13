@@ -65,4 +65,20 @@ class DateUtilsTest {
         val dateNextYear = java.time.LocalDate.of(currentYear + 1, 1, 15)
         assertEquals("15 Jan " + (currentYear + 1), DateUtils.formatDueDateShort(dateNextYear, idLocale))
     }
+
+    @Test
+    fun computeBillingCycleTextClampsFebruaryDates() {
+        // February 2026 has 28 days (non-leap year)
+        // Offset 0: Cutoff 30, Due 31 -> clamped to 28 Feb and 28 Feb
+        val sameMonthClamped = DateUtils.computeBillingCycleText("2026-02", 30, 31, 0)
+        assertEquals("(28 Feb - 28 Feb)", sameMonthClamped)
+
+        // Offset 1: Cutoff 30 in Feb (clamped to 28), Due 31 in March (31 days, so 31 Mar)
+        val nextMonthClamped = DateUtils.computeBillingCycleText("2026-02", 30, 31, 1)
+        assertEquals("(28 Feb - 31 Mar)", nextMonthClamped)
+
+        // Leap year 2024: Feb has 29 days
+        val leapYearClamped = DateUtils.computeBillingCycleText("2024-02", 30, 31, 0)
+        assertEquals("(29 Feb - 29 Feb)", leapYearClamped)
+    }
 }
